@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Menu, X, User, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import Logo from '../Common/Logo';
@@ -10,7 +10,6 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }) => {
   const { user, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <nav className="bg-white border-b border-gray-200 fixed w-full z-30 top-0">
@@ -47,15 +46,6 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }) => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Mobile menu */}
-      <div className={`lg:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
-        <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-gray-200">
-          <span className="block px-3 py-2 text-sm text-gray-500">
-            {user?.nombre} {user?.apellido}
-          </span>
         </div>
       </div>
     </nav>

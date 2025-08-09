@@ -26,17 +26,23 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo 📦 Paso 1: Subiendo archivos al servidor...
+echo 📦 Paso 1: Creando directorio temporal en servidor...
+ssh -o "StrictHostKeyChecking=no" %SERVER_USER%@%SERVER_IP% "mkdir -p %REMOTE_TEMP%"
+
+echo 📦 Paso 2: Subiendo archivos al servidor...
 echo.
 
-REM Subir archivos al servidor (excluir node_modules y archivos temporales)
-scp -r -o "StrictHostKeyChecking=no" ^
-    --exclude=node_modules ^
-    --exclude=dist ^
-    --exclude=build ^
-    --exclude=.git ^
-    --exclude=*.log ^
-    "%LOCAL_DIR%\*" %SERVER_USER%@%SERVER_IP%:%REMOTE_TEMP%/
+REM Crear archivo comprimido excluyendo directorios no necesarios
+tar --exclude=node_modules --exclude=dist --exclude=build --exclude=.git --exclude=*.log --exclude=.claude -czf axiomadocs-update.tar.gz .
+
+REM Subir archivo comprimido
+scp -o "StrictHostKeyChecking=no" axiomadocs-update.tar.gz %SERVER_USER%@%SERVER_IP%:%REMOTE_TEMP%/
+
+REM Extraer en el servidor
+ssh -o "StrictHostKeyChecking=no" %SERVER_USER%@%SERVER_IP% "cd %REMOTE_TEMP% && tar -xzf axiomadocs-update.tar.gz"
+
+REM Limpiar archivo temporal local
+del axiomadocs-update.tar.gz
 
 if %errorlevel% neq 0 (
     echo ❌ Error al subir archivos al servidor
@@ -47,7 +53,7 @@ if %errorlevel% neq 0 (
 echo ✅ Archivos subidos exitosamente
 echo.
 
-echo 🔄 Paso 2: Ejecutando actualización en el servidor...
+echo 🔄 Paso 3: Ejecutando actualización en el servidor...
 echo.
 
 REM Ejecutar script de actualización en el servidor
