@@ -14,7 +14,9 @@
       "Bash(tar:*)",
       "Bash(scp:*)",
       "Bash(ssh:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
