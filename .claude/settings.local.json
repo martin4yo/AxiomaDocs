@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(chmod:*)",
+      "Bash(copy .env.example .env)",
+      "Bash(npm run:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm start)",
+      "Bash(find:*)",
+      "Bash(npm install:*)",
+      "Bash(rm:*)",
+      "Bash(npx tsc:*)",
+      "Bash(tar:*)",
+      "Bash(scp:*)",
+      "Bash(ssh:*)",
+      "Bash(ping:*)"
+    ],
+    "deny": []
+  }
+}
