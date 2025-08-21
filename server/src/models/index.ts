@@ -114,9 +114,12 @@ export {
 };
 
 export const initializeDatabase = async () => {
+  const usePostgres = process.env.USE_POSTGRES === 'true';
+  const dbType = usePostgres ? 'PostgreSQL' : 'MySQL';
+  
   try {
     await sequelize.authenticate();
-    console.log('Conexión a la base de datos MySQL establecida correctamente.');
+    console.log(`Conexión a la base de datos ${dbType} establecida correctamente.`);
     
     // Configuración de sincronización basada en variable de entorno
     const forceReset = process.env.DB_FORCE_RESET === 'true';
@@ -162,8 +165,13 @@ export const initializeDatabase = async () => {
     console.log('Estados iniciales creados.');
     
   } catch (error) {
-    console.error('Error al conectar con la base de datos MySQL:', error);
-    console.error('Verifica que MySQL esté corriendo y que la base de datos "axiomadocs" exista.');
+    console.error(`Error al conectar con la base de datos ${dbType}:`, error);
+    if (usePostgres) {
+      console.error('Verifica que PostgreSQL esté corriendo y que la base de datos "axiomadocs_pg" exista.');
+      console.error('Para crear la base de datos: CREATE DATABASE axiomadocs_pg;');
+    } else {
+      console.error('Verifica que MySQL esté corriendo y que la base de datos "axiomadocs" exista.');
+    }
     throw error;
   }
 };

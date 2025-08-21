@@ -16,13 +16,25 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Configurar CORS origins desde variables de entorno
+const getCorsOrigins = () => {
+  const corsOrigins = process.env.CORS_ORIGINS;
+  if (corsOrigins) {
+    return corsOrigins.split(',').map(origin => origin.trim());
+  }
+  
+  // Fallback a configuración por defecto
+  return process.env.NODE_ENV === 'production' 
+    ? ['http://localhost:3000', 'http://docs.axiomacloud.com', 'http://149.50.148.198:80']
+    : ['http://localhost:3000'];
+};
 
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['http://localhost:3000'] // Agregar dominio de producción
-    : ['http://localhost:3000'],
+  origin: getCorsOrigins(),
   credentials: true,
 }));
 app.use(express.json());
@@ -57,9 +69,10 @@ const startServer = async () => {
   try {
     await initializeDatabase();
     
-    app.listen(PORT, () => {
-      console.log(`Servidor corriendo en puerto ${PORT}`);
+    app.listen(Number(PORT), HOST, () => {
+      console.log(`Servidor corriendo en ${HOST}:${PORT}`);
       console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`CORS habilitado para: ${getCorsOrigins().join(', ')}`);
     });
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);

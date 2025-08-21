@@ -8,7 +8,10 @@
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm run dev",
     "build": "cd client && npm run build && cd ../server && npm run build",
-    "start": "cd server && npm start"
+    "start": "cd server && npm start",
+    "configure": "node scripts/configure-env.js",
+    "deploy:prod": "npm run configure && npm run build && ./deploy-production.sh",
+    "deploy:win": "npm run configure && npm run build && deploy-new-version.bat"
   },
   "keywords": ["document-management", "resources", "typescript"],
   "author": "",
