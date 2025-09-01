@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout/Layout';
 import Login from './pages/Login';
@@ -11,6 +13,19 @@ import Documentacion from './pages/Documentacion';
 import Entidades from './pages/Entidades';
 import Reportes from './pages/Reportes';
 import Usuarios from './pages/Usuarios';
+import Intercambios from './pages/Intercambios';
+import Workflows from './pages/Workflows';
+import Procesos from './pages/Procesos';
+
+// Crear cliente de React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutos
+    },
+  },
+});
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -44,6 +59,9 @@ const AppRoutes: React.FC = () => {
         <Route path="recursos" element={<Recursos />} />
         <Route path="documentacion" element={<Documentacion />} />
         <Route path="entidades" element={<Entidades />} />
+        <Route path="intercambios" element={<Intercambios />} />
+        <Route path="workflows" element={<Workflows />} />
+        <Route path="procesos" element={<Procesos />} />
         <Route path="reportes" element={<Reportes />} />
         <Route path="usuarios" element={<Usuarios />} />
       </Route>
@@ -53,9 +71,21 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppRoutes />
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+          }}
+        />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 };
 

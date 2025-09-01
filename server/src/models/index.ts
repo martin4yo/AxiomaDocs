@@ -7,6 +7,8 @@ import Entidad from './Entidad';
 import RecursoDocumentacion from './RecursoDocumentacion';
 import EntidadDocumentacion from './EntidadDocumentacion';
 import EntidadRecurso from './EntidadRecurso';
+import Workflow from './Workflow';
+import Intercambio from './Intercambio';
 
 // Definir asociaciones
 
@@ -101,6 +103,32 @@ EntidadRecurso.belongsTo(Recurso, { foreignKey: 'recursoId', as: 'recurso' });
 EntidadRecurso.belongsTo(Usuario, { foreignKey: 'creadoPor', as: 'creador' });
 EntidadRecurso.belongsTo(Usuario, { foreignKey: 'modificadoPor', as: 'modificador' });
 
+// Workflow associations
+Workflow.belongsTo(Usuario, { foreignKey: 'creadoPor', as: 'creador' });
+Workflow.belongsTo(Usuario, { foreignKey: 'modificadoPor', as: 'modificador' });
+Workflow.hasMany(Intercambio, { foreignKey: 'workflowId', as: 'intercambios' });
+
+// Intercambio associations
+Intercambio.belongsTo(Workflow, { foreignKey: 'workflowId', as: 'workflow' });
+Intercambio.belongsTo(Entidad, { foreignKey: 'entidadOrigenId', as: 'entidadOrigen' });
+Intercambio.belongsTo(Entidad, { foreignKey: 'entidadDestinoId', as: 'entidadDestino' });
+Intercambio.belongsTo(Usuario, { foreignKey: 'responsableId', as: 'responsable' });
+Intercambio.belongsTo(Usuario, { foreignKey: 'supervisorId', as: 'supervisor' });
+Intercambio.belongsTo(Usuario, { foreignKey: 'creadoPor', as: 'creador' });
+Intercambio.belongsTo(Usuario, { foreignKey: 'modificadoPor', as: 'modificador' });
+
+// Usuario associations for workflows and intercambios
+Usuario.hasMany(Workflow, { foreignKey: 'creadoPor', as: 'workflowsCreados' });
+Usuario.hasMany(Workflow, { foreignKey: 'modificadoPor', as: 'workflowsModificados' });
+Usuario.hasMany(Intercambio, { foreignKey: 'responsableId', as: 'intercambiosResponsable' });
+Usuario.hasMany(Intercambio, { foreignKey: 'supervisorId', as: 'intercambiosSupervisor' });
+Usuario.hasMany(Intercambio, { foreignKey: 'creadoPor', as: 'intercambiosCreados' });
+Usuario.hasMany(Intercambio, { foreignKey: 'modificadoPor', as: 'intercambiosModificados' });
+
+// Entidad associations for intercambios
+Entidad.hasMany(Intercambio, { foreignKey: 'entidadOrigenId', as: 'intercambiosOrigen' });
+Entidad.hasMany(Intercambio, { foreignKey: 'entidadDestinoId', as: 'intercambiosDestino' });
+
 export {
   sequelize,
   Usuario,
@@ -111,6 +139,8 @@ export {
   RecursoDocumentacion,
   EntidadDocumentacion,
   EntidadRecurso,
+  Workflow,
+  Intercambio,
 };
 
 export const initializeDatabase = async () => {

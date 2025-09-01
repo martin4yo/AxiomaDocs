@@ -11,6 +11,8 @@ import entidadRoutes from './routes/entidadRoutes';
 import dashboardRoutes from './routes/dashboard-simple';
 import reportesRoutes from './routes/reportes';
 import usuarioRoutes from './routes/usuarioRoutes';
+import intercambioRoutes from './routes/intercambioRoutes';
+import workflowRoutes from './routes/workflowRoutes';
 
 dotenv.config();
 
@@ -49,6 +51,8 @@ app.use('/api/entidades', entidadRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/intercambios', intercambioRoutes);
+app.use('/api/workflows', workflowRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -7,7 +7,10 @@ import {
   Building2, 
   UserCog, 
   BarChart3,
-  Circle
+  Circle,
+  ArrowRightLeft,
+  Workflow,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -18,10 +21,19 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navItems = [
     { to: '/', icon: Home, label: 'Dashboard' },
+    
+    // Configuración Básica
     { to: '/estados', icon: Circle, label: 'Estados' },
     { to: '/documentacion', icon: FileText, label: 'Documentación' },
     { to: '/recursos', icon: Users, label: 'Recursos' },
     { to: '/entidades', icon: Building2, label: 'Entidades' },
+    
+    // Gestión de Intercambios - Funcionalidad Principal
+    { to: '/intercambios', icon: ArrowRightLeft, label: 'Intercambios' },
+    { to: '/workflows', icon: Workflow, label: 'Configurar Flujos' },
+    { to: '/procesos', icon: Activity, label: 'Monitoreo' },
+    
+    // Análisis y Administración
     { to: '/reportes', icon: BarChart3, label: 'Reportes' },
     { to: '/usuarios', icon: UserCog, label: 'Usuarios' },
   ];
