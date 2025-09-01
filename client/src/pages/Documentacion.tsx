@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2, Users, Search, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Search, Eye, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Documentacion, RecursoDocumentacion } from '../types';
 import { documentacionService } from '../services/documentacion';
@@ -207,7 +207,10 @@ const DocumentacionPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900">Documentación</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <FileText className="h-8 w-8 mr-3 text-emerald-600" />
+          Documentación
+        </h1>
         <div className="flex items-center gap-4">
           <ExportButtons
             data={prepareDocumentacionData(documentacionData?.documentacion || [])}

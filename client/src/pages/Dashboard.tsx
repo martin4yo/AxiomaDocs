@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from 'react-query';
-import { Users, FileText, Building2, AlertTriangle, Clock } from 'lucide-react';
+import { Users, FileText, Building2, AlertTriangle, Clock, LayoutDashboard } from 'lucide-react';
 import { dashboardService, DashboardStats, DocumentoPorVencer } from '../services/dashboard';
 
 const Dashboard: React.FC = () => {
@@ -57,7 +57,10 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <LayoutDashboard className="h-8 w-8 mr-3 text-indigo-600" />
+          Dashboard
+        </h1>
         <p className="text-gray-600">Resumen general del sistema</p>
       </div>
 

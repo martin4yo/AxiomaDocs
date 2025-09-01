@@ -21,7 +21,8 @@
       "Bash(.deploy-new-version.bat)",
       "Bash(./deploy-new-version.sh:*)",
       "Bash(curl:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2, FileText, Users, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Users, Search, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Entidad, EntidadDocumentacion, EntidadRecurso } from '../types';
 import { entidadesService } from '../services/entidades';
@@ -300,7 +300,10 @@ const Entidades: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900">Entidades</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <Building2 className="h-8 w-8 mr-3 text-purple-600" />
+          Entidades
+        </h1>
         <div className="flex items-center gap-4">
           <ExportButtons
             data={prepareEntidadData(entidadesData?.entidades || [])}

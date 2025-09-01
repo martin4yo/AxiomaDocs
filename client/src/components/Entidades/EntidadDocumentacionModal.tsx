@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { EntidadDocumentacion, Documentacion } from '../../types';
 import { documentacionService } from '../../services/documentacion';
 import { estadosService } from '../../services/estados';
-import { formatDateForInput, formatDateLocal, parseDateFromInput } from '../../utils/dateUtils';
+import { formatDateForInput } from '../../utils/dateUtils';
 import { Estado } from '../../types';
 
 interface EntidadDocumentacionModalProps {
@@ -60,8 +60,8 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
 
   const { data: estadosList } = useQuery(
     'estados-all',
-    () => estadosService.getAll({ limit: 100 }),
-    { enabled: isOpen && selectedDoc && !selectedDoc.esUniversal }
+    () => estadosService.getAll(),
+    { enabled: Boolean(isOpen && selectedDoc && !selectedDoc?.esUniversal) }
   );
 
   useEffect(() => {
@@ -75,7 +75,7 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
           esInhabilitante: entidadDocumentacion.esInhabilitante,
           enviarPorMail: entidadDocumentacion.enviarPorMail,
           mailDestino: entidadDocumentacion.mailDestino || '',
-          estadoId: entidadDocumentacion.estadoId || undefined,
+          // estadoId removed as it doesn't exist in EntidadDocumentacion
           fechaEmision: entidadDocumentacion.fechaEmision ? formatDateForInput(entidadDocumentacion.fechaEmision) : '',
           fechaTramitacion: entidadDocumentacion.fechaTramitacion ? formatDateForInput(entidadDocumentacion.fechaTramitacion) : '',
         });
@@ -254,7 +254,7 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
                   className="input w-full"
                 >
                   <option value="">Seleccionar estado...</option>
-                  {estadosList?.estados?.map((estado: Estado) => (
+                  {estadosList?.map((estado: Estado) => (
                     <option key={estado.id} value={estado.id}>
                       {estado.nombre}
                     </option>

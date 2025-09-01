@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2, FileText, Search, Eye, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Search, Eye, AlertCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Recurso, RecursoDocumentacion } from '../types';
 import { recursosService } from '../services/recursos';
@@ -212,7 +212,10 @@ const Recursos: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900">Recursos</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <Users className="h-8 w-8 mr-3 text-sky-600" />
+          Recursos
+        </h1>
         <div className="flex items-center gap-4">
           <ExportButtons
             data={prepareRecursoData(recursosData?.recursos || [])}

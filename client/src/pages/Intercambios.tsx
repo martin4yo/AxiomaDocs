@@ -10,7 +10,6 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Eye,
   Play,
   Pause,
   Edit,
@@ -103,7 +102,7 @@ const Intercambios: React.FC = () => {
     }
   };
 
-  const handleSaveIntercambio = (intercambio: Intercambio) => {
+  const handleSaveIntercambio = () => {
     queryClient.invalidateQueries({ queryKey: ['intercambios'] });
     queryClient.invalidateQueries({ queryKey: ['intercambios', 'estadisticas'] });
   };
@@ -122,7 +121,7 @@ const Intercambios: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-6 mt-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <ArrowRightLeft className="h-8 w-8 mr-3 text-blue-600" />

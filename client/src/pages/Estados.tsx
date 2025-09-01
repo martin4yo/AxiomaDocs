@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Estado } from '../types';
 import { estadosService } from '../services/estados';
@@ -92,7 +92,10 @@ const Estados: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900">Estados</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <Flag className="h-8 w-8 mr-3 text-amber-600" />
+          Estados
+        </h1>
         <div className="flex items-center gap-4">
           <ExportButtons
             data={prepareEstadoData(estados || [])}

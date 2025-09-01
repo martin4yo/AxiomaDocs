@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from 'react-query';
-import { FileText, Users, Calendar, BarChart3, Filter, Eye } from 'lucide-react';
+import { FileText, Users, Calendar, BarChart3, Filter, Eye, TrendingUp } from 'lucide-react';
 import { reportesService } from '../services/reportes';
 import { estadosService } from '../services/estados';
 import { entidadesService } from '../services/entidades';
@@ -125,7 +125,10 @@ const Reportes: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <TrendingUp className="h-8 w-8 mr-3 text-rose-600" />
+          Reportes
+        </h1>
       </div>
 
       {/* Selector de Reportes */}

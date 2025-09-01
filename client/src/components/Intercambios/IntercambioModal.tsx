@@ -66,7 +66,7 @@ const IntercambioModal: React.FC<IntercambioModalProps> = ({
   const { data: workflowSeleccionado } = useQuery({
     queryKey: ['workflow', workflowId],
     queryFn: () => workflowService.obtenerPorId(Number(workflowId)),
-    enabled: !!workflowId && workflowId !== ''
+    enabled: !!workflowId && Number(workflowId) !== 0
   });
 
   // Resetear formulario cuando cambia el intercambio
@@ -287,7 +287,7 @@ const IntercambioModal: React.FC<IntercambioModalProps> = ({
                         <option value="">Seleccionar entidad origen...</option>
                         {entidades.map(entidad => (
                           <option key={entidad.id} value={entidad.id}>
-                            {entidad.nombre}
+                            {entidad.razonSocial}
                           </option>
                         ))}
                       </select>
@@ -316,7 +316,7 @@ const IntercambioModal: React.FC<IntercambioModalProps> = ({
                         <option value="">Seleccionar entidad destino...</option>
                         {entidades.map(entidad => (
                           <option key={entidad.id} value={entidad.id}>
-                            {entidad.nombre}
+                            {entidad.razonSocial}
                           </option>
                         ))}
                       </select>
@@ -344,7 +344,7 @@ const IntercambioModal: React.FC<IntercambioModalProps> = ({
                         <option value="">Seleccionar responsable...</option>
                         {usuarios.map(usuario => (
                           <option key={usuario.id} value={usuario.id}>
-                            {usuario.nombre} {usuario.apellido} ({usuario.nombreUsuario})
+                            {usuario.nombre} {usuario.apellido} ({usuario.username})
                           </option>
                         ))}
                       </select>
@@ -371,7 +371,7 @@ const IntercambioModal: React.FC<IntercambioModalProps> = ({
                         <option value="">Sin supervisor asignado</option>
                         {usuarios.map(usuario => (
                           <option key={usuario.id} value={usuario.id}>
-                            {usuario.nombre} {usuario.apellido} ({usuario.nombreUsuario})
+                            {usuario.nombre} {usuario.apellido} ({usuario.username})
                           </option>
                         ))}
                       </select>
