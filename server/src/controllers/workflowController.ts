@@ -182,6 +182,7 @@ export const workflowController = {
         codigo,
         nombre,
         descripcion,
+        version: '1.0',
         categoria,
         subcategoria,
         tags,
@@ -193,6 +194,10 @@ export const workflowController = {
         complejidad,
         estimacionDuracionHoras,
         recursosRequeridos,
+        estado: 'borrador',
+        publicado: false,
+        utilizaciones: 0,
+        fechaUltimaModificacion: new Date(),
         creadoPor: usuarioId
       });
 
@@ -410,6 +415,7 @@ export const workflowController = {
         codigo: nuevoCodigo,
         nombre: nuevoNombre,
         descripcion: `Copia de: ${workflow.descripcion || workflow.nombre}`,
+        version: '1.0',
         categoria: workflow.categoria,
         subcategoria: workflow.subcategoria,
         tags: [...(workflow.tags || []), 'copia'],
@@ -422,6 +428,9 @@ export const workflowController = {
         estimacionDuracionHoras: workflow.estimacionDuracionHoras,
         recursosRequeridos: workflow.recursosRequeridos,
         estado: 'borrador',
+        publicado: false,
+        utilizaciones: 0,
+        fechaUltimaModificacion: new Date(),
         creadoPor: usuarioId
       });
 
@@ -479,8 +488,8 @@ export const workflowController = {
       // Tiempo promedio de duración
       const workflowsConDuracion = await Workflow.findAll({
         where: {
-          estimacionDuracionHoras: { [Op.not]: null }
-        },
+          estimacionDuracionHoras: { [Op.not]: undefined }
+        } as any,
         attributes: ['estimacionDuracionHoras']
       });
 

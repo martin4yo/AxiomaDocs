@@ -245,9 +245,11 @@ export const intercambioController = {
         workflowVersion: workflow.version,
         entidadOrigenId,
         entidadDestinoId,
+        estado: 'iniciado',
         prioridad,
         fechaInicio: new Date(),
         fechaEstimadaFin: fechaFin || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 días por defecto
+        progreso: 0,
         responsableId,
         supervisorId,
         contexto: {},
@@ -504,8 +506,8 @@ export const intercambioController = {
         where: {
           ...whereClause,
           estado: 'completado',
-          fechaFinReal: { [Op.not]: null }
-        },
+          fechaFinReal: { [Op.not]: undefined }
+        } as any,
         attributes: ['fechaInicio', 'fechaFinReal']
       });
 

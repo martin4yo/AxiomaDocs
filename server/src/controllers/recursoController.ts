@@ -95,7 +95,9 @@ export const createRecurso = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
 
     // Validar fecha de alta - usar fecha actual si no se proporciona o es inválida
-    const fechaAltaValid = fechaAlta && !isNaN(Date.parse(fechaAlta)) ? parseFechaLocal(fechaAlta) : new Date();
+    const fechaAltaValid = fechaAlta && fechaAlta !== '' && fechaAlta !== 'Invalid date' && !isNaN(Date.parse(fechaAlta)) 
+      ? parseFechaLocal(fechaAlta) 
+      : new Date();
 
     const recurso = await Recurso.create({
       codigo,
@@ -129,11 +131,26 @@ export const updateRecurso = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Recurso no encontrado' });
     }
 
-    // Validar fechas - convertir fechas inválidas a null y usar fecha local
-    const fechaAltaValid = fechaAlta && !isNaN(Date.parse(fechaAlta)) ? parseFechaLocal(fechaAlta) : null;
-    const fechaBajaValid = fechaBaja && !isNaN(Date.parse(fechaBaja)) ? parseFechaLocal(fechaBaja) : null;
+    // Validar fechas - manejar fechas inválidas y valores especiales
+    let fechaAltaValid: Date | null | undefined;
+    if (fechaAlta === null || fechaAlta === '' || fechaAlta === undefined) {
+      fechaAltaValid = undefined; // No actualizar si no se envía o está vacío
+    } else if (fechaAlta === 'Invalid date' || isNaN(Date.parse(fechaAlta))) {
+      fechaAltaValid = undefined; // No actualizar si es inválida
+    } else {
+      fechaAltaValid = parseFechaLocal(fechaAlta);
+    }
+    
+    let fechaBajaValid: Date | null | undefined;
+    if (fechaBaja === null || fechaBaja === '') {
+      fechaBajaValid = null; // Explícitamente limpiar la fecha
+    } else if (fechaBaja === undefined || fechaBaja === 'Invalid date' || isNaN(Date.parse(fechaBaja))) {
+      fechaBajaValid = undefined; // No actualizar si es inválida o no se envía
+    } else {
+      fechaBajaValid = parseFechaLocal(fechaBaja);
+    }
 
-    await recurso.update({
+    const updateData: any = {
       codigo,
       apellido,
       nombre,
@@ -141,10 +158,20 @@ export const updateRecurso = async (req: AuthRequest, res: Response) => {
       cuil,
       direccion,
       localidad,
-      fechaAlta: fechaAltaValid,
-      fechaBaja: fechaBajaValid,
       modificadoPor: userId,
-    });
+    };
+
+    // Solo incluir fechaAlta si se debe actualizar
+    if (fechaAltaValid !== undefined) {
+      updateData.fechaAlta = fechaAltaValid;
+    }
+
+    // Solo incluir fechaBaja si se debe actualizar (incluye null para limpiar)
+    if (fechaBajaValid !== undefined) {
+      updateData.fechaBaja = fechaBajaValid;
+    }
+
+    await recurso.update(updateData);
 
     res.json(recurso);
   } catch (error) {

@@ -21,9 +21,8 @@ const sequelize = new Sequelize({
       rejectUnauthorized: false
     } : false,
   } : {
-    // MySQL specific options
+    // MySQL specific options - NO incluir collate aquí
     charset: 'utf8mb4',
-    collate: 'utf8mb4_unicode_ci',
     // Configuración de zona horaria para MySQL
     timezone: '-03:00', // GMT-3 para Argentina
   },
@@ -32,7 +31,7 @@ const sequelize = new Sequelize({
     timestamps: true,
     underscored: false,
   } : {
-    // MySQL defaults
+    // MySQL defaults - collate puede ir aquí
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci',
   },

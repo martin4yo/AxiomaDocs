@@ -263,7 +263,6 @@ export const addDocumentacionToEntidad = async (req: AuthRequest, res: Response)
       esInhabilitante,
       enviarPorMail,
       mailDestino,
-      estadoId: estadoId || undefined,
       fechaEmision: fechasParaAsignacion.fechaEmision ? new Date(fechasParaAsignacion.fechaEmision) : undefined,
       fechaTramitacion: fechasParaAsignacion.fechaTramitacion ? new Date(fechasParaAsignacion.fechaTramitacion) : undefined,
       fechaVencimiento: fechasParaAsignacion.fechaVencimiento ? new Date(fechasParaAsignacion.fechaVencimiento) : undefined,
@@ -315,7 +314,6 @@ export const updateEntidadDocumentacion = async (req: AuthRequest, res: Response
         esInhabilitante,
         enviarPorMail,
         mailDestino,
-        estadoId: estadoId || undefined,
         modificadoPor: userId,
       });
     } else {
@@ -329,7 +327,6 @@ export const updateEntidadDocumentacion = async (req: AuthRequest, res: Response
         esInhabilitante,
         enviarPorMail,
         mailDestino,
-        estadoId: estadoId || undefined,
         fechaEmision: fechasParaAsignacion.fechaEmision || undefined,
         fechaTramitacion: fechasParaAsignacion.fechaTramitacion || undefined,
         fechaVencimiento: fechasParaAsignacion.fechaVencimiento || undefined,
@@ -378,8 +375,8 @@ export const addRecursoToEntidad = async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
 
     // Validar fechas - usar fecha local y permitir fechaFin nula
-    const fechaInicioValid = fechaInicio && !isNaN(Date.parse(fechaInicio)) ? parseFechaLocal(fechaInicio) : null;
-    const fechaFinValid = fechaFin && !isNaN(Date.parse(fechaFin)) ? parseFechaLocal(fechaFin) : null;
+    const fechaInicioValid = fechaInicio && !isNaN(Date.parse(fechaInicio)) ? parseFechaLocal(fechaInicio) : new Date();
+    const fechaFinValid = fechaFin && !isNaN(Date.parse(fechaFin)) ? parseFechaLocal(fechaFin) : undefined;
 
     const entidadRecurso = await EntidadRecurso.create({
       entidadId: Number(id),
@@ -420,15 +417,22 @@ export const updateEntidadRecurso = async (req: AuthRequest, res: Response) => {
     }
 
     // Validar fechas - usar fecha local y permitir fechaFin nula
-    const fechaInicioValid = fechaInicio && !isNaN(Date.parse(fechaInicio)) ? parseFechaLocal(fechaInicio) : null;
-    const fechaFinValid = fechaFin && !isNaN(Date.parse(fechaFin)) ? parseFechaLocal(fechaFin) : null;
-
-    await entidadRecurso.update({
-      fechaInicio: fechaInicioValid,
-      fechaFin: fechaFinValid,
+    const updateData: any = {
       activo,
       modificadoPor: userId,
-    });
+    };
+
+    if (fechaInicio && !isNaN(Date.parse(fechaInicio))) {
+      updateData.fechaInicio = parseFechaLocal(fechaInicio);
+    }
+
+    if (fechaFin === null || fechaFin === '') {
+      updateData.fechaFin = null;
+    } else if (fechaFin && !isNaN(Date.parse(fechaFin))) {
+      updateData.fechaFin = parseFechaLocal(fechaFin);
+    }
+
+    await entidadRecurso.update(updateData);
 
     const result = await EntidadRecurso.findByPk(entidadRecursoId, {
       include: [

@@ -153,7 +153,11 @@ export const initializeDatabase = async () => {
     
     // Configuración de sincronización basada en variable de entorno
     const forceReset = process.env.DB_FORCE_RESET === 'true';
-    const allowAlter = process.env.DB_ALLOW_ALTER !== 'false'; // true por defecto
+    const isProduction = process.env.NODE_ENV === 'production';
+    // En producción, por defecto NO hacer alter a menos que se especifique explícitamente
+    const allowAlter = isProduction 
+      ? process.env.DB_ALLOW_ALTER === 'true' 
+      : process.env.DB_ALLOW_ALTER !== 'false';
     
     if (forceReset) {
       console.log('⚠️  ADVERTENCIA: DB_FORCE_RESET=true - Recreando base de datos...');
@@ -172,10 +176,8 @@ export const initializeDatabase = async () => {
     } else {
       // Solo sync normal (más seguro para producción)
       await sequelize.sync();
-      console.log('Base de datos sincronizada (solo creación de tablas nuevas).');
+      console.log('Base de datos sincronizada.');
     }
-    
-    console.log('Base de datos sincronizada.');
     
     // Crear estados iniciales si no existen
     const estadosIniciales = [
