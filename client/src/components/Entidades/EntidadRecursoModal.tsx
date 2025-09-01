@@ -4,6 +4,7 @@ import { useQuery } from 'react-query';
 import { X } from 'lucide-react';
 import { EntidadRecurso, Recurso } from '../../types';
 import { recursosService } from '../../services/recursos';
+import { formatDateForInput, formatDateLocal } from '../../utils/dateUtils';
 
 interface EntidadRecursoModalProps {
   isOpen: boolean;
@@ -51,19 +52,20 @@ const EntidadRecursoModal: React.FC<EntidadRecursoModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      if (entidadRecurso) {
+      if (entidadRecurso && recursosData) {
+        // Find the full resource data in the list to ensure we have all properties
+        const fullRecurso = recursosData.recursos.find(r => r.id === entidadRecurso.recursoId);
+        
         reset({
           recursoId: entidadRecurso.recursoId,
-          fechaInicio: entidadRecurso.fechaInicio
-            ? new Date(entidadRecurso.fechaInicio).toISOString().split('T')[0]
-            : '',
-          fechaFin: entidadRecurso.fechaFin
-            ? new Date(entidadRecurso.fechaFin).toISOString().split('T')[0]
-            : '',
+          fechaInicio: formatDateForInput(entidadRecurso.fechaInicio),
+          fechaFin: formatDateForInput(entidadRecurso.fechaFin),
           activo: entidadRecurso.activo,
         });
-        setSelectedRecurso(entidadRecurso.recurso || null);
-      } else {
+        
+        // Use the full resource data from the list, or fallback to the one from entidadRecurso
+        setSelectedRecurso(fullRecurso || entidadRecurso.recurso || null);
+      } else if (!entidadRecurso && recursosData) {
         reset({
           recursoId: 0,
           fechaInicio: '',
@@ -73,14 +75,26 @@ const EntidadRecursoModal: React.FC<EntidadRecursoModalProps> = ({
         setSelectedRecurso(null);
       }
     }
-  }, [isOpen, entidadRecurso, reset]);
+  }, [isOpen, entidadRecurso, recursosData, reset]);
 
   useEffect(() => {
     if (recursoId && recursosData) {
       const recurso = recursosData.recursos.find(r => r.id === Number(recursoId));
       setSelectedRecurso(recurso || null);
+    } else if (!recursoId) {
+      setSelectedRecurso(null);
     }
   }, [recursoId, recursosData]);
+
+  // Ensure selectedRecurso is set when editing existing entidadRecurso
+  useEffect(() => {
+    if (entidadRecurso && entidadRecurso.recurso && recursosData) {
+      const recurso = recursosData.recursos.find(r => r.id === entidadRecurso.recursoId);
+      if (recurso && !selectedRecurso) {
+        setSelectedRecurso(recurso);
+      }
+    }
+  }, [entidadRecurso, recursosData, selectedRecurso]);
 
   const handleFormSubmit = (data: EntidadRecursoForm) => {
     if (selectedRecurso?.fechaBaja) {
@@ -147,7 +161,7 @@ const EntidadRecursoModal: React.FC<EntidadRecursoModalProps> = ({
               <p><strong>CUIL:</strong> {selectedRecurso.cuil || 'No especificado'}</p>
               <p><strong>Teléfono:</strong> {selectedRecurso.telefono || 'No especificado'}</p>
               <p><strong>Localidad:</strong> {selectedRecurso.localidad || 'No especificado'}</p>
-              <p><strong>Fecha Alta:</strong> {new Date(selectedRecurso.fechaAlta).toLocaleDateString('es-ES')}</p>
+              <p><strong>Fecha Alta:</strong> {formatDateLocal(selectedRecurso.fechaAlta)}</p>
             </div>
           )}
 

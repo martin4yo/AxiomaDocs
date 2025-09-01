@@ -10,6 +10,7 @@ import ConfirmDialog from '../components/Common/ConfirmDialog';
 import ExportButtons from '../components/Common/ExportButtons';
 import { getHighestLevelEstado, getProximosVencimientos } from '../utils/estadoUtils';
 import { prepareRecursoData } from '../utils/exportUtils';
+import { formatDateLocal } from '../utils/dateUtils';
 
 const Recursos: React.FC = () => {
   const [isRecursoModalOpen, setIsRecursoModalOpen] = useState(false);
@@ -197,10 +198,7 @@ const Recursos: React.FC = () => {
     }));
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('es-ES');
-  };
+  // Usar la nueva función de formateo de fechas locales
 
 
   if (isLoading) {
@@ -291,7 +289,7 @@ const Recursos: React.FC = () => {
                       <td>{recurso.apellido}, {recurso.nombre}</td>
                       <td>{recurso.cuil || '-'}</td>
                       <td>{recurso.telefono || '-'}</td>
-                      <td>{formatDate(recurso.fechaAlta)}</td>
+                      <td>{formatDateLocal(recurso.fechaAlta)}</td>
                       <td>
                         <span className={`status-badge ${recurso.fechaBaja ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                           {recurso.fechaBaja ? 'Inactivo' : 'Activo'}
@@ -385,9 +383,9 @@ const Recursos: React.FC = () => {
                                         <td className="py-2">
                                           {doc.documentacion?.codigo} - {doc.documentacion?.descripcion}
                                         </td>
-                                        <td className="py-2">{formatDate(doc.fechaEmision)}</td>
-                                        <td className="py-2">{formatDate(doc.fechaTramitacion)}</td>
-                                        <td className="py-2">{formatDate(doc.fechaVencimiento)}</td>
+                                        <td className="py-2">{formatDateLocal(doc.fechaEmision)}</td>
+                                        <td className="py-2">{formatDateLocal(doc.fechaTramitacion)}</td>
+                                        <td className="py-2">{formatDateLocal(doc.fechaVencimiento)}</td>
                                         <td className="py-2">
                                           {doc.estado ? (
                                             <span 

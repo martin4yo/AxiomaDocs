@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { RecursoDocumentacion, Documentacion } from '../../types';
 import { documentacionService } from '../../services/documentacion';
 import { estadosService } from '../../services/estados';
+import { formatDateForInput, formatDateLocal, parseDateFromInput } from '../../utils/dateUtils';
 
 interface DocumentoModalProps {
   isOpen: boolean;
@@ -63,12 +64,8 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
       if (recursoDocumentacion) {
         reset({
           documentacionId: recursoDocumentacion.documentacionId,
-          fechaEmision: recursoDocumentacion.fechaEmision 
-            ? new Date(recursoDocumentacion.fechaEmision).toISOString().split('T')[0] 
-            : '',
-          fechaTramitacion: recursoDocumentacion.fechaTramitacion 
-            ? new Date(recursoDocumentacion.fechaTramitacion).toISOString().split('T')[0] 
-            : '',
+          fechaEmision: formatDateForInput(recursoDocumentacion.fechaEmision),
+          fechaTramitacion: formatDateForInput(recursoDocumentacion.fechaTramitacion),
           estadoId: recursoDocumentacion.estadoId || undefined,
         });
         setSelectedDoc(recursoDocumentacion.documentacion || null);
@@ -93,9 +90,12 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
 
   const calculateVencimiento = () => {
     if (fechaEmision && selectedDoc) {
-      const emision = new Date(fechaEmision);
-      emision.setDate(emision.getDate() + selectedDoc.diasVigencia);
-      return emision.toLocaleDateString('es-ES');
+      const emision = parseDateFromInput(fechaEmision);
+      if (emision) {
+        const vencimiento = new Date(emision);
+        vencimiento.setDate(vencimiento.getDate() + selectedDoc.diasVigencia);
+        return formatDateLocal(vencimiento);
+      }
     }
     return '-';
   };

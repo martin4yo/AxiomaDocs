@@ -11,6 +11,7 @@ import ConfirmDialog from '../components/Common/ConfirmDialog';
 import ExportButtons from '../components/Common/ExportButtons';
 import { getHighestLevelEstadoFromEntidad } from '../utils/estadoUtils';
 import { prepareEntidadData } from '../utils/exportUtils';
+import { formatDateLocal } from '../utils/dateUtils';
 
 const Entidades: React.FC = () => {
   const [isEntidadModalOpen, setIsEntidadModalOpen] = useState(false);
@@ -286,10 +287,7 @@ const Entidades: React.FC = () => {
     }));
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('es-ES');
-  };
+  // Usar la nueva función de formateo de fechas locales
 
   if (isLoading) {
     return (
@@ -470,6 +468,10 @@ const Entidades: React.FC = () => {
                                   <thead>
                                     <tr className="border-b border-gray-200">
                                       <th className="text-left py-2">Documentación</th>
+                                      <th className="text-left py-2">Fecha Emisión</th>
+                                      <th className="text-left py-2">Fecha Tramitación</th>
+                                      <th className="text-left py-2">Fecha Vencimiento</th>
+                                      <th className="text-left py-2">Estado</th>
                                       <th className="text-left py-2">Inhabilitante</th>
                                       <th className="text-left py-2">Envío Mail</th>
                                       <th className="text-left py-2">Mail Destino</th>
@@ -481,6 +483,19 @@ const Entidades: React.FC = () => {
                                       <tr key={doc.id} className="border-b border-gray-100">
                                         <td className="py-2">
                                           {doc.documentacion?.codigo} - {doc.documentacion?.descripcion}
+                                        </td>
+                                        <td className="py-2">{formatDateLocal(doc.fechaEmision)}</td>
+                                        <td className="py-2">{formatDateLocal(doc.fechaTramitacion)}</td>
+                                        <td className="py-2">{formatDateLocal(doc.fechaVencimiento)}</td>
+                                        <td className="py-2">
+                                          {doc.documentacion?.estado ? (
+                                            <span 
+                                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                              style={{ backgroundColor: doc.documentacion.estado.color + '20', color: doc.documentacion.estado.color }}
+                                            >
+                                              {doc.documentacion.estado.nombre}
+                                            </span>
+                                          ) : '-'}
                                         </td>
                                         <td className="py-2">
                                           <span className={`status-badge ${doc.esInhabilitante ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -548,8 +563,8 @@ const Entidades: React.FC = () => {
                                         <td className="py-2">
                                           {recursoEnt.recurso?.codigo} - {recursoEnt.recurso?.apellido}, {recursoEnt.recurso?.nombre}
                                         </td>
-                                        <td className="py-2">{formatDate(recursoEnt.fechaInicio)}</td>
-                                        <td className="py-2">{formatDate(recursoEnt.fechaFin)}</td>
+                                        <td className="py-2">{formatDateLocal(recursoEnt.fechaInicio)}</td>
+                                        <td className="py-2">{formatDateLocal(recursoEnt.fechaFin)}</td>
                                         <td className="py-2">
                                           <span className={`status-badge ${recursoEnt.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                             {recursoEnt.activo ? 'Activo' : 'Inactivo'}

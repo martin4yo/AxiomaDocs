@@ -10,7 +10,7 @@ import {
   Estado 
 } from '../models';
 import { AuthRequest } from '../middleware/auth';
-import { isDocumentoUniversal, getFechasForAsignacion } from '../utils/documentHelpers';
+import { isDocumentoUniversal, getFechasForAsignacion, parseFechaLocal } from '../utils/documentHelpers';
 
 export const getEntidades = async (req: AuthRequest, res: Response) => {
   try {
@@ -37,6 +37,12 @@ export const getEntidades = async (req: AuthRequest, res: Response) => {
             {
               model: Documentacion,
               as: 'documentacion',
+              include: [
+                {
+                  model: Estado,
+                  as: 'estado',
+                }
+              ]
             }
           ]
         },
@@ -96,6 +102,12 @@ export const getEntidad = async (req: AuthRequest, res: Response) => {
             {
               model: Documentacion,
               as: 'documentacion',
+              include: [
+                {
+                  model: Estado,
+                  as: 'estado',
+                }
+              ]
             }
           ]
         },
@@ -230,7 +242,7 @@ export const deleteEntidad = async (req: AuthRequest, res: Response) => {
 export const addDocumentacionToEntidad = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { documentacionId, esInhabilitante, enviarPorMail, mailDestino, fechaEmision, fechaTramitacion } = req.body;
+    const { documentacionId, esInhabilitante, enviarPorMail, mailDestino, estadoId, fechaEmision, fechaTramitacion } = req.body;
     const userId = req.user!.id;
 
     // Obtener la documentación para validar si es universal
@@ -251,6 +263,7 @@ export const addDocumentacionToEntidad = async (req: AuthRequest, res: Response)
       esInhabilitante,
       enviarPorMail,
       mailDestino,
+      estadoId: estadoId || undefined,
       fechaEmision: fechasParaAsignacion.fechaEmision ? new Date(fechasParaAsignacion.fechaEmision) : undefined,
       fechaTramitacion: fechasParaAsignacion.fechaTramitacion ? new Date(fechasParaAsignacion.fechaTramitacion) : undefined,
       fechaVencimiento: fechasParaAsignacion.fechaVencimiento ? new Date(fechasParaAsignacion.fechaVencimiento) : undefined,
@@ -277,7 +290,7 @@ export const addDocumentacionToEntidad = async (req: AuthRequest, res: Response)
 export const updateEntidadDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { entidadDocId } = req.params;
-    const { esInhabilitante, enviarPorMail, mailDestino, fechaEmision, fechaTramitacion } = req.body;
+    const { esInhabilitante, enviarPorMail, mailDestino, estadoId, fechaEmision, fechaTramitacion } = req.body;
     const userId = req.user!.id;
 
     const entidadDoc = await EntidadDocumentacion.findByPk(entidadDocId, {
@@ -302,6 +315,7 @@ export const updateEntidadDocumentacion = async (req: AuthRequest, res: Response
         esInhabilitante,
         enviarPorMail,
         mailDestino,
+        estadoId: estadoId || undefined,
         modificadoPor: userId,
       });
     } else {
@@ -315,6 +329,7 @@ export const updateEntidadDocumentacion = async (req: AuthRequest, res: Response
         esInhabilitante,
         enviarPorMail,
         mailDestino,
+        estadoId: estadoId || undefined,
         fechaEmision: fechasParaAsignacion.fechaEmision || undefined,
         fechaTramitacion: fechasParaAsignacion.fechaTramitacion || undefined,
         fechaVencimiento: fechasParaAsignacion.fechaVencimiento || undefined,
@@ -362,11 +377,15 @@ export const addRecursoToEntidad = async (req: AuthRequest, res: Response) => {
     const { recursoId, fechaInicio, fechaFin } = req.body;
     const userId = req.user!.id;
 
+    // Validar fechas - usar fecha local y permitir fechaFin nula
+    const fechaInicioValid = fechaInicio && !isNaN(Date.parse(fechaInicio)) ? parseFechaLocal(fechaInicio) : null;
+    const fechaFinValid = fechaFin && !isNaN(Date.parse(fechaFin)) ? parseFechaLocal(fechaFin) : null;
+
     const entidadRecurso = await EntidadRecurso.create({
       entidadId: Number(id),
       recursoId,
-      fechaInicio,
-      fechaFin,
+      fechaInicio: fechaInicioValid,
+      fechaFin: fechaFinValid,
       activo: true,
       creadoPor: userId,
       modificadoPor: userId,
@@ -400,9 +419,13 @@ export const updateEntidadRecurso = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Recurso de la entidad no encontrado' });
     }
 
+    // Validar fechas - usar fecha local y permitir fechaFin nula
+    const fechaInicioValid = fechaInicio && !isNaN(Date.parse(fechaInicio)) ? parseFechaLocal(fechaInicio) : null;
+    const fechaFinValid = fechaFin && !isNaN(Date.parse(fechaFin)) ? parseFechaLocal(fechaFin) : null;
+
     await entidadRecurso.update({
-      fechaInicio,
-      fechaFin,
+      fechaInicio: fechaInicioValid,
+      fechaFin: fechaFinValid,
       activo,
       modificadoPor: userId,
     });

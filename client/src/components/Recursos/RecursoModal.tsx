@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import { Recurso } from '../../types';
+import { formatDateForInput, getCurrentDateLocal } from '../../utils/dateUtils';
 
 interface RecursoModalProps {
   isOpen: boolean;
@@ -48,8 +49,8 @@ const RecursoModal: React.FC<RecursoModalProps> = ({
           cuil: recurso.cuil || '',
           direccion: recurso.direccion || '',
           localidad: recurso.localidad || '',
-          fechaAlta: recurso.fechaAlta ? new Date(recurso.fechaAlta).toISOString().split('T')[0] : '',
-          fechaBaja: recurso.fechaBaja ? new Date(recurso.fechaBaja).toISOString().split('T')[0] : '',
+          fechaAlta: formatDateForInput(recurso.fechaAlta),
+          fechaBaja: formatDateForInput(recurso.fechaBaja),
         });
       } else {
         reset({
@@ -60,7 +61,7 @@ const RecursoModal: React.FC<RecursoModalProps> = ({
           cuil: '',
           direccion: '',
           localidad: '',
-          fechaAlta: new Date().toISOString().split('T')[0],
+          fechaAlta: formatDateForInput(getCurrentDateLocal()),
           fechaBaja: '',
         });
       }

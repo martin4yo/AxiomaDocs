@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { Op } from 'sequelize';
 import { Recurso, RecursoDocumentacion, Documentacion, Estado } from '../models';
 import { AuthRequest } from '../middleware/auth';
-import { isDocumentoUniversal, getFechasForAsignacion } from '../utils/documentHelpers';
+import { isDocumentoUniversal, getFechasForAsignacion, parseFechaLocal } from '../utils/documentHelpers';
 
 export const getRecursos = async (req: AuthRequest, res: Response) => {
   try {
@@ -94,6 +94,9 @@ export const createRecurso = async (req: AuthRequest, res: Response) => {
     const { codigo, apellido, nombre, telefono, cuil, direccion, localidad, fechaAlta } = req.body;
     const userId = req.user!.id;
 
+    // Validar fecha de alta - usar fecha actual si no se proporciona o es inválida
+    const fechaAltaValid = fechaAlta && !isNaN(Date.parse(fechaAlta)) ? parseFechaLocal(fechaAlta) : new Date();
+
     const recurso = await Recurso.create({
       codigo,
       apellido,
@@ -102,7 +105,7 @@ export const createRecurso = async (req: AuthRequest, res: Response) => {
       cuil,
       direccion,
       localidad,
-      fechaAlta: fechaAlta || new Date(),
+      fechaAlta: fechaAltaValid,
       creadoPor: userId,
       modificadoPor: userId,
     });
@@ -126,6 +129,10 @@ export const updateRecurso = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Recurso no encontrado' });
     }
 
+    // Validar fechas - convertir fechas inválidas a null y usar fecha local
+    const fechaAltaValid = fechaAlta && !isNaN(Date.parse(fechaAlta)) ? parseFechaLocal(fechaAlta) : null;
+    const fechaBajaValid = fechaBaja && !isNaN(Date.parse(fechaBaja)) ? parseFechaLocal(fechaBaja) : null;
+
     await recurso.update({
       codigo,
       apellido,
@@ -134,8 +141,8 @@ export const updateRecurso = async (req: AuthRequest, res: Response) => {
       cuil,
       direccion,
       localidad,
-      fechaAlta,
-      fechaBaja,
+      fechaAlta: fechaAltaValid,
+      fechaBaja: fechaBajaValid,
       modificadoPor: userId,
     });
 
@@ -202,8 +209,8 @@ export const addDocumentToRecurso = async (req: AuthRequest, res: Response) => {
 
     // Determinar qué fechas usar (universales o específicas)
     const fechasParaAsignacion = getFechasForAsignacion(documentacion, {
-      fechaEmision: fechaEmision ? new Date(fechaEmision) : undefined,
-      fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : undefined
+      fechaEmision: fechaEmision ? parseFechaLocal(fechaEmision) : undefined,
+      fechaTramitacion: fechaTramitacion ? parseFechaLocal(fechaTramitacion) : undefined
     });
 
     const recursoDoc = await RecursoDocumentacion.create({

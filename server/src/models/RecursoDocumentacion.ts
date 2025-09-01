@@ -4,6 +4,7 @@ import Recurso from './Recurso';
 import Documentacion from './Documentacion';
 import Estado from './Estado';
 import Usuario from './Usuario';
+import { calcularFechaVencimiento } from '../utils/documentHelpers';
 
 export interface RecursoDocumentacionAttributes {
   id?: number;
@@ -111,6 +112,34 @@ RecursoDocumentacion.init({
       fields: ['recursoId', 'documentacionId'],
     },
   ],
+  hooks: {
+    beforeCreate: async (recursoDoc: RecursoDocumentacion) => {
+      // Calcular fecha de vencimiento automáticamente si no se proporciona
+      if (recursoDoc.fechaEmision && !recursoDoc.fechaVencimiento) {
+        try {
+          const documentacion = await Documentacion.findByPk(recursoDoc.documentacionId);
+          if (documentacion && documentacion.diasVigencia) {
+            recursoDoc.fechaVencimiento = calcularFechaVencimiento(recursoDoc.fechaEmision, documentacion.diasVigencia);
+          }
+        } catch (error) {
+          console.error('Error calculando fecha de vencimiento:', error);
+        }
+      }
+    },
+    beforeUpdate: async (recursoDoc: RecursoDocumentacion) => {
+      // Recalcular fecha de vencimiento si se cambió la fecha de emisión
+      if (recursoDoc.changed('fechaEmision') && recursoDoc.fechaEmision) {
+        try {
+          const documentacion = await Documentacion.findByPk(recursoDoc.documentacionId);
+          if (documentacion && documentacion.diasVigencia) {
+            recursoDoc.fechaVencimiento = calcularFechaVencimiento(recursoDoc.fechaEmision, documentacion.diasVigencia);
+          }
+        } catch (error) {
+          console.error('Error calculando fecha de vencimiento:', error);
+        }
+      }
+    }
+  }
 });
 
 export default RecursoDocumentacion;

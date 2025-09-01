@@ -24,6 +24,8 @@ const sequelize = new Sequelize({
     // MySQL specific options
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci',
+    // Configuración de zona horaria para MySQL
+    timezone: '-03:00', // GMT-3 para Argentina
   },
   define: usePostgres ? {
     // PostgreSQL defaults
@@ -34,7 +36,7 @@ const sequelize = new Sequelize({
     charset: 'utf8mb4',
     collate: 'utf8mb4_unicode_ci',
   },
-  timezone: 'America/Argentina/Buenos_Aires', // Using IANA timezone identifier
+  timezone: '-03:00', // GMT-3 para Argentina (más compatible que IANA)
   pool: {
     max: 10,
     min: 0,

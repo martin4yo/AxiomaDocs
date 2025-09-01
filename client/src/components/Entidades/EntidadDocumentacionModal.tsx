@@ -4,6 +4,9 @@ import { useQuery } from 'react-query';
 import { X } from 'lucide-react';
 import { EntidadDocumentacion, Documentacion } from '../../types';
 import { documentacionService } from '../../services/documentacion';
+import { estadosService } from '../../services/estados';
+import { formatDateForInput, formatDateLocal, parseDateFromInput } from '../../utils/dateUtils';
+import { Estado } from '../../types';
 
 interface EntidadDocumentacionModalProps {
   isOpen: boolean;
@@ -20,6 +23,7 @@ interface EntidadDocumentacionForm {
   esInhabilitante: boolean;
   enviarPorMail: boolean;
   mailDestino?: string;
+  estadoId?: number;
   // Campos de fechas específicas por entidad (solo si el documento no es universal)
   fechaEmision?: string;
   fechaTramitacion?: string;
@@ -54,38 +58,63 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
     { enabled: isOpen }
   );
 
+  const { data: estadosList } = useQuery(
+    'estados-all',
+    () => estadosService.getAll({ limit: 100 }),
+    { enabled: isOpen && selectedDoc && !selectedDoc.esUniversal }
+  );
+
   useEffect(() => {
     if (isOpen) {
-      if (entidadDocumentacion) {
+      if (entidadDocumentacion && documentacionList) {
+        // Find the full document data in the list to ensure we have all properties
+        const fullDoc = documentacionList.documentacion.find(d => d.id === entidadDocumentacion.documentacionId);
+        
         reset({
           documentacionId: entidadDocumentacion.documentacionId,
           esInhabilitante: entidadDocumentacion.esInhabilitante,
           enviarPorMail: entidadDocumentacion.enviarPorMail,
           mailDestino: entidadDocumentacion.mailDestino || '',
-          fechaEmision: entidadDocumentacion.fechaEmision ? entidadDocumentacion.fechaEmision.split('T')[0] : '',
-          fechaTramitacion: entidadDocumentacion.fechaTramitacion ? entidadDocumentacion.fechaTramitacion.split('T')[0] : '',
+          estadoId: entidadDocumentacion.estadoId || undefined,
+          fechaEmision: entidadDocumentacion.fechaEmision ? formatDateForInput(entidadDocumentacion.fechaEmision) : '',
+          fechaTramitacion: entidadDocumentacion.fechaTramitacion ? formatDateForInput(entidadDocumentacion.fechaTramitacion) : '',
         });
-        setSelectedDoc(entidadDocumentacion.documentacion || null);
-      } else {
+        
+        // Use the full document data from the list, or fallback to the one from entidadDocumentacion
+        setSelectedDoc(fullDoc || entidadDocumentacion.documentacion || null);
+      } else if (!entidadDocumentacion && documentacionList) {
         reset({
           documentacionId: 0,
           esInhabilitante: false,
           enviarPorMail: false,
           mailDestino: '',
+          estadoId: undefined,
           fechaEmision: '',
           fechaTramitacion: '',
         });
         setSelectedDoc(null);
       }
     }
-  }, [isOpen, entidadDocumentacion, reset]);
+  }, [isOpen, entidadDocumentacion, documentacionList, reset]);
 
   useEffect(() => {
     if (documentacionId && documentacionList) {
       const doc = documentacionList.documentacion.find(d => d.id === Number(documentacionId));
       setSelectedDoc(doc || null);
+    } else if (!documentacionId) {
+      setSelectedDoc(null);
     }
   }, [documentacionId, documentacionList]);
+
+  // Ensure selectedDoc is set when editing existing entidadDocumentacion
+  useEffect(() => {
+    if (entidadDocumentacion && entidadDocumentacion.documentacion && documentacionList) {
+      const doc = documentacionList.documentacion.find(d => d.id === entidadDocumentacion.documentacionId);
+      if (doc && !selectedDoc) {
+        setSelectedDoc(doc);
+      }
+    }
+  }, [entidadDocumentacion, documentacionList, selectedDoc]);
 
   const calculateVencimiento = () => {
     if (selectedDoc && !selectedDoc.esUniversal && fechaEmision && selectedDoc.diasVigencia) {
@@ -210,10 +239,33 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
             </div>
           )}
 
-          {/* Campos de fechas específicas (solo si el documento no es universal) */}
+          {/* Campos específicos (solo si el documento no es universal) */}
           {selectedDoc && !selectedDoc.esUniversal && (
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-3">Fechas Específicas para esta Entidad</h4>
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Configuración Específica para esta Entidad</h4>
+              
+              {/* Campo Estado */}
+              <div className="mb-4">
+                <label htmlFor="estadoId" className="block text-sm font-medium text-gray-700 mb-1">
+                  Estado
+                </label>
+                <select
+                  {...register('estadoId')}
+                  className="input w-full"
+                >
+                  <option value="">Seleccionar estado...</option>
+                  {estadosList?.estados?.map((estado: Estado) => (
+                    <option key={estado.id} value={estado.id}>
+                      {estado.nombre}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Estado específico para esta asignación de entidad
+                </p>
+              </div>
+
+              <h5 className="text-sm font-medium text-gray-900 mb-3">Fechas Específicas</h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="fechaEmision" className="block text-sm font-medium text-gray-700 mb-1">
