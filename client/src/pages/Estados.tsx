@@ -104,11 +104,11 @@ const Estados: React.FC = () => {
               title: 'Listado de Estados',
               columns: [
                 { key: 'nombre', label: 'Nombre', width: 20 },
+                { key: 'codigo', label: 'Código', width: 15 },
                 { key: 'color', label: 'Color', width: 15 },
                 { key: 'nivel', label: 'Nivel', width: 10 },
-                { key: 'descripcion', label: 'Descripción', width: 30 },
-                { key: 'fechaCreacion', label: 'Fecha Creación', width: 15 },
-                { key: 'fechaModificacion', label: 'Fecha Modificación', width: 15 }
+                { key: 'descripcion', label: 'Descripción', width: 25 },
+                { key: 'fechaCreacion', label: 'Fecha Creación', width: 15 }
               ]
             }}
             disabled={isLoading}
@@ -130,7 +130,9 @@ const Estados: React.FC = () => {
               <thead>
                 <tr>
                   <th>Nombre</th>
+                  <th>Código</th>
                   <th>Color</th>
+                  <th>Nivel</th>
                   <th>Descripción</th>
                   <th>Fecha Creación</th>
                   <th className="w-32">Acciones</th>
@@ -140,6 +142,15 @@ const Estados: React.FC = () => {
                 {estados?.map((estado) => (
                   <tr key={estado.id}>
                     <td className="font-medium">{estado.nombre}</td>
+                    <td className="text-sm">
+                      {estado.codigo ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {estado.codigo}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
                     <td>
                       <div className="flex items-center space-x-2">
                         <div
@@ -148,6 +159,11 @@ const Estados: React.FC = () => {
                         />
                         <span className="text-sm text-gray-600">{estado.color}</span>
                       </div>
+                    </td>
+                    <td className="text-center">
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-sm font-medium text-gray-700">
+                        {estado.nivel}
+                      </span>
                     </td>
                     <td className="text-sm text-gray-600">
                       {estado.descripcion || '-'}

@@ -13,6 +13,7 @@ interface EstadoModalProps {
 
 interface EstadoForm {
   nombre: string;
+  codigo?: string;
   color: string;
   nivel: number;
   descripcion?: string;
@@ -37,6 +38,7 @@ const EstadoModal: React.FC<EstadoModalProps> = ({
       if (estado) {
         reset({
           nombre: estado.nombre,
+          codigo: estado.codigo || '',
           color: estado.color,
           nivel: estado.nivel || 1,
           descripcion: estado.descripcion || '',
@@ -44,6 +46,7 @@ const EstadoModal: React.FC<EstadoModalProps> = ({
       } else {
         reset({
           nombre: '',
+          codigo: '',
           color: '#000000',
           nivel: 1,
           descripcion: '',
@@ -87,6 +90,30 @@ const EstadoModal: React.FC<EstadoModalProps> = ({
             {errors.nombre && (
               <p className="mt-1 text-sm text-red-600">{errors.nombre.message}</p>
             )}
+          </div>
+
+          <div>
+            <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 mb-1">
+              Código del Sistema
+            </label>
+            <input
+              {...register('codigo', {
+                pattern: {
+                  value: /^[A-Z_]+$/,
+                  message: 'Solo letras mayúsculas y guiones bajos (ej: POR_VENCER)'
+                }
+              })}
+              type="text"
+              className="input w-full"
+              placeholder="POR_VENCER, VENCIDO, VIGENTE (opcional)"
+              style={{ textTransform: 'uppercase' }}
+            />
+            {errors.codigo && (
+              <p className="mt-1 text-sm text-red-600">{errors.codigo.message}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              Código único para identificación automática del sistema. Si no se especifica, solo será un estado manual.
+            </p>
           </div>
 
           <div>

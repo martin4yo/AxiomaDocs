@@ -120,6 +120,7 @@ export const exportToPDF = ({ filename, columns, data, title }: ExportOptions) =
 export const prepareEstadoData = (estados: any[]) => {
   return estados.map(estado => ({
     ...estado,
+    codigo: estado.codigo || '',
     color: estado.color || '#6B7280',
     nivel: estado.nivel || 1,
     fechaCreacion: estado.createdAt ? format(new Date(estado.createdAt), 'dd/MM/yyyy') : '',

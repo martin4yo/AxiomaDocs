@@ -11,6 +11,7 @@ export interface Usuario {
 export interface Estado {
   id: number;
   nombre: string;
+  codigo?: string;
   color: string;
   nivel: number;
   descripcion?: string;
