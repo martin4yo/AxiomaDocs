@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { Users, FileText, Building2, AlertTriangle, Clock, LayoutDashboard, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { dashboardService, DashboardStats, DocumentoPorVencer } from '../services/dashboard';
-import { estadoDocumentosService, UltimaActualizacion } from '../services/estadoDocumentos';
+import { estadoDocumentosService } from '../services/estadoDocumentos';
 import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {

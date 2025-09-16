@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import estadoDocumentosService from '../services/estadoDocumentosService';
 import cronService from '../services/cronService';
 import EstadoDocumentoLog from '../models/EstadoDocumentoLog';
@@ -13,7 +14,7 @@ class EstadoDocumentosController {
   /**
    * Ejecuta la actualización manual de estados
    */
-  async actualizarEstados(req: Request, res: Response) {
+  async actualizarEstados(req: AuthRequest, res: Response) {
     try {
       const usuarioId = req.user?.id;
       console.log(`Iniciando actualización manual de estados por usuario ${usuarioId || 'desconocido'}...`);
@@ -40,7 +41,7 @@ class EstadoDocumentosController {
   /**
    * Obtiene estadísticas de los estados actuales
    */
-  async obtenerEstadisticas(req: Request, res: Response) {
+  async obtenerEstadisticas(req: AuthRequest, res: Response) {
     try {
       const estadisticas = await estadoDocumentosService.obtenerEstadisticas();
 
@@ -61,7 +62,7 @@ class EstadoDocumentosController {
   /**
    * Obtiene el último log de actualización
    */
-  async obtenerUltimaActualizacion(req: Request, res: Response) {
+  async obtenerUltimaActualizacion(req: AuthRequest, res: Response) {
     try {
       const ultimaActualizacion = cronService.obtenerUltimaActualizacion();
       const estadoJobs = cronService.obtenerEstadoJobs();
@@ -83,7 +84,7 @@ class EstadoDocumentosController {
   /**
    * Obtiene los logs de auditoría de cambios de estado
    */
-  async obtenerLogs(req: Request, res: Response) {
+  async obtenerLogs(req: AuthRequest, res: Response) {
     try {
       const {
         page = 1,

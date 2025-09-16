@@ -51,6 +51,9 @@ class EstadoDocumentosService {
         throw new Error('Faltan estados necesarios en el sistema: POR_VENCER, VENCIDO. Verifique que tengan códigos asignados.');
       }
 
+      // Crear un mapa de estados para búsquedas rápidas
+      const estadosMap = new Map(estados.map(e => [e.id, e]));
+
       // 1. Actualizar RecursoDocumentacion
       const recursoDocs = await RecursoDocumentacion.findAll({
         include: [
@@ -65,10 +68,9 @@ class EstadoDocumentosService {
         const resultado = await this.evaluarYActualizarEstado(
           doc,
           'recurso',
-          estadoVigente,
           estadoPorVencer,
           estadoVencido,
-          estadoEnTramite,
+          estadosMap,
           tipoActualizacion
         );
 
@@ -96,10 +98,9 @@ class EstadoDocumentosService {
         const resultado = await this.evaluarYActualizarEstado(
           doc,
           'entidad',
-          estadoVigente,
           estadoPorVencer,
           estadoVencido,
-          estadoEnTramite,
+          estadosMap,
           tipoActualizacion
         );
 
@@ -132,10 +133,9 @@ class EstadoDocumentosService {
   private async evaluarYActualizarEstado(
     documento: any,
     tipo: 'recurso' | 'entidad',
-    estadoVigente: Estado,
     estadoPorVencer: Estado,
     estadoVencido: Estado,
-    estadoEnTramite: Estado | undefined,
+    estadosMap: Map<number, Estado>,
     tipoActualizacion: 'manual' | 'automatica' = 'automatica'
   ): Promise<{ actualizado: boolean; detalle?: any; error?: boolean }> {
     try {
@@ -206,7 +206,7 @@ class EstadoDocumentosService {
           documentoId: documento.documentacionId,
           ...(tipo === 'recurso' ? { recursoId: documento.recursoId } : { entidadId: documento.entidadId }),
           estadoAnterior: estadoActual?.nombre || 'Sin estado',
-          estadoNuevo: estados.find((e: Estado) => e.id === nuevoEstadoId)?.nombre || 'Desconocido',
+          estadoNuevo: estadosMap.get(nuevoEstadoId)?.nombre || 'Desconocido',
           razon
         };
 

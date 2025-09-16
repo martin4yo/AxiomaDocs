@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import estadoDocumentosController from '../controllers/estadoDocumentosController';
-import { authenticateToken } from '../middleware/authMiddleware';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
