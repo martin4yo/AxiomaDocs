@@ -25,7 +25,13 @@
       "Bash(grep:*)",
       "Bash(dir:*)",
       "Bash(move env .env)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(node:*)",
+      "Bash(DB_ALLOW_ALTER=true npm start)",
+      "Bash(mysql:*)",
+      "Bash(pkill:*)",
+      "Bash(netstat:*)",
+      "Bash(./kill-port-5000.bat)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

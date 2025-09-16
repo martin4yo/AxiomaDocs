@@ -57,9 +57,9 @@ class EstadoDocumentosService {
       // 1. Actualizar RecursoDocumentacion
       const recursoDocs = await RecursoDocumentacion.findAll({
         include: [
-          { model: Documentacion },
-          { model: Recurso },
-          { model: Estado }
+          { model: Documentacion, as: 'documentacion' },
+          { model: Recurso, as: 'recurso' },
+          { model: Estado, as: 'estado' }
         ]
       });
 
@@ -84,35 +84,8 @@ class EstadoDocumentosService {
         }
       }
 
-      // 2. Actualizar EntidadDocumentacion
-      const entidadDocs = await EntidadDocumentacion.findAll({
-        include: [
-          { model: Documentacion },
-          { model: Entidad },
-          { model: Estado }
-        ]
-      });
-
-      for (const doc of entidadDocs) {
-        totalRevisados++;
-        const resultado = await this.evaluarYActualizarEstado(
-          doc,
-          'entidad',
-          estadoPorVencer,
-          estadoVencido,
-          estadosMap,
-          tipoActualizacion
-        );
-
-        if (resultado.actualizado) {
-          actualizados++;
-          if (resultado.detalle) {
-            this.detalles.push(resultado.detalle);
-          }
-        } else if (resultado.error) {
-          errores++;
-        }
-      }
+      // Nota: EntidadDocumentacion no maneja estados automáticos
+      // Solo RecursoDocumentacion tiene estados que se actualizan automáticamente
 
       return {
         totalRevisados,
@@ -145,8 +118,8 @@ class EstadoDocumentosService {
       // Obtener información del documento
       const fechaVencimiento = documento.fechaVencimiento ? new Date(documento.fechaVencimiento) : null;
       const fechaTramitacion = documento.fechaTramitacion ? new Date(documento.fechaTramitacion) : null;
-      const estadoActual = documento.Estado;
-      const documentacion = documento.Documentacion;
+      const estadoActual = documento.estado;
+      const documentacion = documento.documentacion;
 
       // Si no hay fecha de vencimiento, mantener estado actual
       if (!fechaVencimiento) {
@@ -242,19 +215,12 @@ class EstadoDocumentosService {
         'estadoId',
         [sequelize.fn('COUNT', sequelize.col('RecursoDocumentacion.id')), 'count']
       ],
-      include: [{ model: Estado, attributes: ['nombre'] }],
-      group: ['estadoId', 'Estado.id', 'Estado.nombre']
+      include: [{ model: Estado, as: 'estado', attributes: ['nombre'] }],
+      group: ['estadoId', 'estado.id', 'estado.nombre']
     });
 
-    // Estadísticas de EntidadDocumentacion
-    const entidadStats = await EntidadDocumentacion.findAll({
-      attributes: [
-        'estadoId',
-        [sequelize.fn('COUNT', sequelize.col('EntidadDocumentacion.id')), 'count']
-      ],
-      include: [{ model: Estado, attributes: ['nombre'] }],
-      group: ['estadoId', 'Estado.id', 'Estado.nombre']
-    });
+    // Nota: EntidadDocumentacion no tiene estados, por lo tanto no hay estadísticas de estado
+    const entidadStats: any[] = [];
 
     // Documentos próximos a vencer
     const proximosVencer = await RecursoDocumentacion.findAll({
@@ -264,8 +230,8 @@ class EstadoDocumentosService {
         }
       },
       include: [
-        { model: Recurso, attributes: ['nombre', 'apellido'] },
-        { model: Documentacion, attributes: ['nombre'] }
+        { model: Recurso, as: 'recurso', attributes: ['nombre', 'apellido'] },
+        { model: Documentacion, as: 'documentacion', attributes: ['descripcion'] }
       ],
       limit: 10,
       order: [['fechaVencimiento', 'ASC']]
@@ -279,8 +245,8 @@ class EstadoDocumentosService {
         }
       },
       include: [
-        { model: Recurso, attributes: ['nombre', 'apellido'] },
-        { model: Documentacion, attributes: ['nombre'] }
+        { model: Recurso, as: 'recurso', attributes: ['nombre', 'apellido'] },
+        { model: Documentacion, as: 'documentacion', attributes: ['descripcion'] }
       ],
       limit: 10,
       order: [['fechaVencimiento', 'DESC']]
@@ -306,8 +272,8 @@ class EstadoDocumentosService {
     return {
       id: doc.id,
       fechaVencimiento: doc.fechaVencimiento,
-      recurso: doc.Recurso ? `${doc.Recurso.nombre} ${doc.Recurso.apellido}` : null,
-      documento: doc.Documentacion?.nombre
+      recurso: doc.recurso ? `${doc.recurso.nombre} ${doc.recurso.apellido}` : null,
+      documento: doc.documentacion?.descripcion
     };
   }
 }

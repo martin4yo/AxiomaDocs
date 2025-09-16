@@ -35,13 +35,13 @@ export interface UltimaActualizacion {
 export const estadoDocumentosService = {
   // Ejecutar actualización manual
   async actualizarEstados(): Promise<ActualizacionResultado> {
-    const response = await axios.post('/api/estado-documentos/actualizar');
+    const response = await axios.post('/estado-documentos/actualizar');
     return response.data.resultado;
   },
 
   // Obtener estadísticas
   async obtenerEstadisticas(): Promise<EstadisticasEstados> {
-    const response = await axios.get('/api/estado-documentos/estadisticas');
+    const response = await axios.get('/estado-documentos/estadisticas');
     return response.data.estadisticas;
   },
 
@@ -54,7 +54,7 @@ export const estadoDocumentosService = {
       ultimaEjecucion?: string;
     }>;
   }> {
-    const response = await axios.get('/api/estado-documentos/ultima-actualizacion');
+    const response = await axios.get('/estado-documentos/ultima-actualizacion');
     return response.data;
   }
 };

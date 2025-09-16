@@ -128,7 +128,7 @@ const Dashboard: React.FC = () => {
             {/* Botón de actualización manual */}
             <button
               onClick={() => setShowActualizacionModal(true)}
-              className="btn-primary flex items-center"
+              className="btn btn-primary btn-md flex items-center"
               disabled={actualizacionMutation.isLoading}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${actualizacionMutation.isLoading ? 'animate-spin' : ''}`} />
@@ -321,14 +321,14 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowActualizacionModal(false)}
-                className="btn-secondary"
+                className="btn btn-secondary btn-md"
                 disabled={actualizacionMutation.isLoading}
               >
                 Cancelar
               </button>
               <button
                 onClick={() => actualizacionMutation.mutate()}
-                className="btn-primary flex items-center"
+                className="btn btn-primary btn-md flex items-center"
                 disabled={actualizacionMutation.isLoading}
               >
                 {actualizacionMutation.isLoading ? (
