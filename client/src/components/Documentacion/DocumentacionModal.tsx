@@ -25,6 +25,7 @@ interface DocumentacionForm {
   // Campos para documentos universales
   fechaEmision?: string;
   fechaTramitacion?: string;
+  fechaVencimiento?: string;
 }
 
 const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
@@ -55,6 +56,12 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
     defaultValue: '',
   });
 
+  const fechaVencimiento = useWatch({
+    control,
+    name: 'fechaVencimiento',
+    defaultValue: '',
+  });
+
   const diasVigencia = useWatch({
     control,
     name: 'diasVigencia',
@@ -81,6 +88,7 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
           estadoId: documentacion.estadoId || 0,
           fechaEmision: documentacion.fechaEmision ? documentacion.fechaEmision.split('T')[0] : '',
           fechaTramitacion: documentacion.fechaTramitacion ? documentacion.fechaTramitacion.split('T')[0] : '',
+          fechaVencimiento: documentacion.fechaVencimiento ? documentacion.fechaVencimiento.split('T')[0] : '',
         });
       } else {
         reset({
@@ -94,6 +102,7 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
           estadoId: 0,
           fechaEmision: '',
           fechaTramitacion: '',
+          fechaVencimiento: '',
         });
       }
     }
@@ -104,6 +113,7 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
     if (!esUniversal) {
       setValue('fechaEmision', '');
       setValue('fechaTramitacion', '');
+      setValue('fechaVencimiento', '');
       setValue('estadoId', 0);
     }
   }, [esUniversal, setValue]);
@@ -115,6 +125,39 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
       return emision.toLocaleDateString('es-ES');
     }
     return '';
+  };
+
+  // Actualizar fecha de vencimiento automáticamente cuando cambia fecha de emisión o días de vigencia
+  useEffect(() => {
+    if (esUniversal && fechaEmision && diasVigencia) {
+      const emision = new Date(fechaEmision);
+      emision.setDate(emision.getDate() + Number(diasVigencia));
+      const fechaCalculada = emision.toISOString().split('T')[0];
+      setValue('fechaVencimiento', fechaCalculada);
+    }
+  }, [esUniversal, fechaEmision, diasVigencia, setValue]);
+
+  // Establecer fecha de vencimiento por defecto cuando se cambia a documento universal
+  useEffect(() => {
+    if (esUniversal && !fechaVencimiento && fechaEmision && diasVigencia) {
+      const emision = new Date(fechaEmision);
+      emision.setDate(emision.getDate() + Number(diasVigencia));
+      const fechaCalculada = emision.toISOString().split('T')[0];
+      setValue('fechaVencimiento', fechaCalculada);
+    } else if (esUniversal && !fechaVencimiento && !fechaEmision && diasVigencia) {
+      // Si no hay fecha de emisión, usar fecha actual como base
+      const hoy = new Date();
+      hoy.setDate(hoy.getDate() + Number(diasVigencia));
+      const fechaCalculada = hoy.toISOString().split('T')[0];
+      setValue('fechaVencimiento', fechaCalculada);
+    }
+  }, [esUniversal, fechaVencimiento, fechaEmision, diasVigencia, setValue]);
+
+  // Obtener fecha mínima (día actual + 1)
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
   };
 
   const handleFormSubmit = (data: DocumentacionForm) => {
@@ -341,17 +384,43 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
                 </div>
               </div>
 
-              {/* Mostrar fecha de vencimiento calculada */}
-              {calculateVencimiento() && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    <strong>Fecha de vencimiento calculada:</strong> {calculateVencimiento()}
+              {/* Campo de fecha de vencimiento editable */}
+              <div className="mt-4">
+                <label htmlFor="fechaVencimiento" className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de Vencimiento *
+                </label>
+                <input
+                  {...register('fechaVencimiento', {
+                    required: esUniversal ? 'La fecha de vencimiento es requerida para documentos universales' : false,
+                    validate: (value) => {
+                      if (esUniversal && value) {
+                        const selectedDate = new Date(value);
+                        const minDate = new Date();
+                        minDate.setDate(minDate.getDate() + 1);
+                        if (selectedDate < minDate) {
+                          return 'La fecha de vencimiento debe ser posterior al día actual';
+                        }
+                      }
+                      return true;
+                    }
+                  })}
+                  type="date"
+                  min={esUniversal ? getMinDate() : undefined}
+                  className="input w-full"
+                  disabled={!esUniversal}
+                />
+                {errors.fechaVencimiento && (
+                  <p className="mt-1 text-sm text-red-600">{errors.fechaVencimiento.message}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Fecha de vencimiento del documento (editable)
+                </p>
+                {fechaEmision && diasVigencia && !fechaVencimiento && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    Sugerencia calculada: {calculateVencimiento()}
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Cálculo: Fecha emisión + {diasVigencia} días de vigencia
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 

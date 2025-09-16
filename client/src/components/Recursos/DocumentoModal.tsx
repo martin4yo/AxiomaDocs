@@ -21,6 +21,7 @@ interface DocumentoForm {
   documentacionId: number;
   fechaEmision?: string;
   fechaTramitacion?: string;
+  fechaVencimiento?: string;
   estadoId?: number;
 }
 
@@ -45,7 +46,15 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
   } = useForm<DocumentoForm>();
 
   const fechaEmision = watch('fechaEmision');
+  const fechaVencimiento = watch('fechaVencimiento');
   const documentacionId = watch('documentacionId');
+
+  // Obtener fecha mínima (día actual + 1)
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   const { data: documentacionList } = useQuery(
     'documentacion-all',
@@ -66,6 +75,7 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
           documentacionId: recursoDocumentacion.documentacionId,
           fechaEmision: formatDateForInput(recursoDocumentacion.fechaEmision),
           fechaTramitacion: formatDateForInput(recursoDocumentacion.fechaTramitacion),
+          fechaVencimiento: formatDateForInput(recursoDocumentacion.fechaVencimiento),
           estadoId: recursoDocumentacion.estadoId || undefined,
         });
         setSelectedDoc(recursoDocumentacion.documentacion || null);
@@ -74,6 +84,7 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
           documentacionId: 0,
           fechaEmision: '',
           fechaTramitacion: '',
+          fechaVencimiento: '',
           estadoId: undefined,
         });
         setSelectedDoc(null);
@@ -87,6 +98,19 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
       setSelectedDoc(doc || null);
     }
   }, [documentacionId, documentacionList]);
+
+  // Establecer fecha de vencimiento sugerida por defecto
+  useEffect(() => {
+    if (selectedDoc && fechaEmision && !fechaVencimiento) {
+      const emision = parseDateFromInput(fechaEmision);
+      if (emision) {
+        const vencimiento = new Date(emision);
+        vencimiento.setDate(vencimiento.getDate() + selectedDoc.diasVigencia);
+        const fechaCalculada = vencimiento.toISOString().split('T')[0];
+        _setValue('fechaVencimiento', fechaCalculada);
+      }
+    }
+  }, [selectedDoc, fechaEmision, fechaVencimiento, _setValue]);
 
   const calculateVencimiento = () => {
     if (fechaEmision && selectedDoc) {
@@ -191,16 +215,37 @@ const DocumentoModal: React.FC<DocumentoModalProps> = ({
             </p>
           </div>
 
-          {fechaEmision && selectedDoc && (
-            <div className="bg-blue-50 p-3 rounded-md">
-              <p className="text-sm text-blue-800">
-                <strong>Fecha de vencimiento calculada:</strong> {calculateVencimiento()}
+          <div>
+            <label htmlFor="fechaVencimiento" className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha de Vencimiento
+            </label>
+            <input
+              {...register('fechaVencimiento', {
+                validate: (value) => {
+                  if (value) {
+                    const selectedDate = new Date(value);
+                    const minDate = new Date();
+                    minDate.setDate(minDate.getDate() + 1);
+                    if (selectedDate < minDate) {
+                      return 'La fecha de vencimiento debe ser posterior al día actual';
+                    }
+                  }
+                  return true;
+                }
+              })}
+              type="date"
+              min={getMinDate()}
+              className="input w-full"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Fecha de vencimiento del documento (editable)
+            </p>
+            {fechaEmision && selectedDoc && !fechaVencimiento && (
+              <p className="mt-1 text-xs text-blue-600">
+                Sugerencia calculada: {calculateVencimiento()}
               </p>
-              <p className="text-xs text-blue-600 mt-1">
-                Cálculo: Fecha emisión + {selectedDoc.diasVigencia} días
-              </p>
-            </div>
-          )}
+            )}
+          </div>
 
           <div>
             <label htmlFor="estadoId" className="block text-sm font-medium text-gray-700 mb-1">

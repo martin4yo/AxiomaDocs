@@ -120,8 +120,8 @@ EntidadDocumentacion.init({
   ],
   hooks: {
     beforeSave: async (entidadDoc: EntidadDocumentacion) => {
-      // Calcular fecha de vencimiento automáticamente si hay fecha de emisión
-      if (entidadDoc.fechaEmision && entidadDoc.documentacionId) {
+      // Calcular fecha de vencimiento automáticamente solo si no se estableció manualmente
+      if (entidadDoc.fechaEmision && entidadDoc.documentacionId && !entidadDoc.fechaVencimiento) {
         const documentacion = await Documentacion.findByPk(entidadDoc.documentacionId);
         if (documentacion) {
           const fechaEmisionDate = new Date(entidadDoc.fechaEmision);

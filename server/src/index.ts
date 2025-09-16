@@ -13,6 +13,8 @@ import reportesRoutes from './routes/reportes';
 import usuarioRoutes from './routes/usuarioRoutes';
 import intercambioRoutes from './routes/intercambioRoutes';
 import workflowRoutes from './routes/workflowRoutes';
+import estadoDocumentosRoutes from './routes/estadoDocumentos';
+import cronService from './services/cronService';
 
 dotenv.config();
 
@@ -53,6 +55,7 @@ app.use('/api/reportes', reportesRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/intercambios', intercambioRoutes);
 app.use('/api/workflows', workflowRoutes);
+app.use('/api/estado-documentos', estadoDocumentosRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -77,6 +80,9 @@ const startServer = async () => {
       console.log(`Servidor corriendo en ${HOST}:${PORT}`);
       console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
       console.log(`CORS habilitado para: ${getCorsOrigins().join(', ')}`);
+
+      // Iniciar servicios de cron
+      cronService.iniciar();
     });
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);

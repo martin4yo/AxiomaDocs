@@ -21,6 +21,7 @@ interface RecursoDocumentoForm {
   recursoId: number;
   fechaEmision?: string;
   fechaTramitacion?: string;
+  fechaVencimiento?: string;
   estadoId?: number;
 }
 
@@ -41,11 +42,20 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<RecursoDocumentoForm>();
 
   const recursoId = watch('recursoId');
   const fechaEmision = watch('fechaEmision');
+  const fechaVencimiento = watch('fechaVencimiento');
+
+  // Obtener fecha mínima (día actual + 1)
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   const { data: recursosData } = useQuery(
     'recursos-all',
@@ -76,6 +86,9 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
           fechaTramitacion: recursoDocumentacion.fechaTramitacion 
             ? new Date(recursoDocumentacion.fechaTramitacion).toISOString().split('T')[0] 
             : '',
+          fechaVencimiento: recursoDocumentacion.fechaVencimiento 
+            ? new Date(recursoDocumentacion.fechaVencimiento).toISOString().split('T')[0] 
+            : '',
           estadoId: recursoDocumentacion.estadoId || undefined,
         });
         setSelectedRecurso(recursoDocumentacion.recurso || null);
@@ -84,6 +97,7 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
           recursoId: 0,
           fechaEmision: '',
           fechaTramitacion: '',
+          fechaVencimiento: '',
           estadoId: undefined,
         });
         setSelectedRecurso(null);
@@ -103,6 +117,16 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
       setSelectedDocumentacion(documentacionData);
     }
   }, [documentacionData]);
+
+  // Establecer fecha de vencimiento sugerida por defecto para documentos no universales
+  useEffect(() => {
+    if (selectedDocumentacion && !selectedDocumentacion.esUniversal && fechaEmision && !fechaVencimiento) {
+      const emision = new Date(fechaEmision);
+      emision.setDate(emision.getDate() + selectedDocumentacion.diasVigencia);
+      const fechaCalculada = emision.toISOString().split('T')[0];
+      setValue('fechaVencimiento', fechaCalculada);
+    }
+  }, [selectedDocumentacion, fechaEmision, fechaVencimiento, setValue]);
 
   const calculateVencimiento = () => {
     if (selectedDocumentacion) {
@@ -220,6 +244,38 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
                   Fecha de inicio o recepción del documento
                 </p>
               </div>
+
+              <div>
+                <label htmlFor="fechaVencimiento" className="block text-sm font-medium text-gray-700 mb-1">
+                  Fecha de Vencimiento
+                </label>
+                <input
+                  {...register('fechaVencimiento', {
+                    validate: (value) => {
+                      if (value) {
+                        const selectedDate = new Date(value);
+                        const minDate = new Date();
+                        minDate.setDate(minDate.getDate() + 1);
+                        if (selectedDate < minDate) {
+                          return 'La fecha de vencimiento debe ser posterior al día actual';
+                        }
+                      }
+                      return true;
+                    }
+                  })}
+                  type="date"
+                  min={getMinDate()}
+                  className="input w-full"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Fecha de vencimiento del documento (editable)
+                </p>
+                {fechaEmision && selectedDocumentacion && !fechaVencimiento && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    Sugerencia calculada: {calculateVencimiento()}
+                  </p>
+                )}
+              </div>
             </>
           )}
 
@@ -257,6 +313,21 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
                     Fecha universal - no editable
                   </p>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha de Vencimiento
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedDocumentacion.fechaVencimiento ? selectedDocumentacion.fechaVencimiento.split('T')[0] : ''}
+                    className="input w-full bg-gray-100"
+                    disabled
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Fecha universal - no editable
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -276,15 +347,13 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
             </div>
           )}
 
-          {selectedDocumentacion && calculateVencimiento() !== '-' && (
+          {selectedDocumentacion && !selectedDocumentacion.esUniversal && calculateVencimiento() !== '-' && (
             <div className="bg-blue-50 p-3 rounded-md">
               <p className="text-sm text-blue-800">
-                <strong>Fecha de vencimiento:</strong> {calculateVencimiento()}
+                <strong>Fecha de vencimiento calculada (sugerencia):</strong> {calculateVencimiento()}
               </p>
               <p className="text-xs text-blue-600 mt-1">
-                {selectedDocumentacion.esUniversal 
-                  ? 'Fecha universal predefinida' 
-                  : `Cálculo: Fecha emisión + ${selectedDocumentacion.diasVigencia} días`}
+                Cálculo: Fecha emisión + {selectedDocumentacion.diasVigencia} días
               </p>
             </div>
           )}

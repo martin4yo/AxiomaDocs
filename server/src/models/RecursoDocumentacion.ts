@@ -114,7 +114,7 @@ RecursoDocumentacion.init({
   ],
   hooks: {
     beforeCreate: async (recursoDoc: RecursoDocumentacion) => {
-      // Calcular fecha de vencimiento automáticamente si no se proporciona
+      // Calcular fecha de vencimiento automáticamente solo si no se proporciona y hay fecha de emisión
       if (recursoDoc.fechaEmision && !recursoDoc.fechaVencimiento) {
         try {
           const documentacion = await Documentacion.findByPk(recursoDoc.documentacionId);
@@ -127,8 +127,8 @@ RecursoDocumentacion.init({
       }
     },
     beforeUpdate: async (recursoDoc: RecursoDocumentacion) => {
-      // Recalcular fecha de vencimiento si se cambió la fecha de emisión
-      if (recursoDoc.changed('fechaEmision') && recursoDoc.fechaEmision) {
+      // Solo recalcular fecha de vencimiento si se cambió la fecha de emisión Y no se estableció manualmente fechaVencimiento
+      if (recursoDoc.changed('fechaEmision') && recursoDoc.fechaEmision && !recursoDoc.changed('fechaVencimiento')) {
         try {
           const documentacion = await Documentacion.findByPk(recursoDoc.documentacionId);
           if (documentacion && documentacion.diasVigencia) {

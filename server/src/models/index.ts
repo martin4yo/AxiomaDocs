@@ -9,6 +9,7 @@ import EntidadDocumentacion from './EntidadDocumentacion';
 import EntidadRecurso from './EntidadRecurso';
 import Workflow from './Workflow';
 import Intercambio from './Intercambio';
+import EstadoDocumentoLog from './EstadoDocumentoLog';
 
 // Definir asociaciones
 
@@ -129,6 +130,22 @@ Usuario.hasMany(Intercambio, { foreignKey: 'modificadoPor', as: 'intercambiosMod
 Entidad.hasMany(Intercambio, { foreignKey: 'entidadOrigenId', as: 'intercambiosOrigen' });
 Entidad.hasMany(Intercambio, { foreignKey: 'entidadDestinoId', as: 'intercambiosDestino' });
 
+// EstadoDocumentoLog associations
+EstadoDocumentoLog.belongsTo(Usuario, { foreignKey: 'usuarioId', as: 'usuario' });
+EstadoDocumentoLog.belongsTo(Documentacion, { foreignKey: 'documentacionId', as: 'documentacion' });
+EstadoDocumentoLog.belongsTo(Recurso, { foreignKey: 'recursoId', as: 'recurso' });
+EstadoDocumentoLog.belongsTo(Entidad, { foreignKey: 'entidadId', as: 'entidad' });
+EstadoDocumentoLog.belongsTo(Estado, { foreignKey: 'estadoAnteriorId', as: 'estadoAnterior' });
+EstadoDocumentoLog.belongsTo(Estado, { foreignKey: 'estadoNuevoId', as: 'estadoNuevo' });
+
+// Reverse associations
+Usuario.hasMany(EstadoDocumentoLog, { foreignKey: 'usuarioId', as: 'estadoLogs' });
+Documentacion.hasMany(EstadoDocumentoLog, { foreignKey: 'documentacionId', as: 'estadoLogs' });
+Recurso.hasMany(EstadoDocumentoLog, { foreignKey: 'recursoId', as: 'estadoLogs' });
+Entidad.hasMany(EstadoDocumentoLog, { foreignKey: 'entidadId', as: 'estadoLogs' });
+Estado.hasMany(EstadoDocumentoLog, { foreignKey: 'estadoAnteriorId', as: 'logsComoAnterior' });
+Estado.hasMany(EstadoDocumentoLog, { foreignKey: 'estadoNuevoId', as: 'logsComoNuevo' });
+
 export {
   sequelize,
   Usuario,
@@ -141,6 +158,7 @@ export {
   EntidadRecurso,
   Workflow,
   Intercambio,
+  EstadoDocumentoLog,
 };
 
 export const initializeDatabase = async () => {
@@ -179,19 +197,24 @@ export const initializeDatabase = async () => {
       console.log('Base de datos sincronizada.');
     }
     
-    // Crear estados iniciales si no existen
+    // Crear estados iniciales si no existen (con códigos únicos)
     const estadosIniciales = [
-      { nombre: 'En Trámite', color: '#FFA500', nivel: 2, descripcion: 'Documento en proceso de tramitación' },
-      { nombre: 'Vigente', color: '#00FF00', nivel: 1, descripcion: 'Documento vigente y válido' },
-      { nombre: 'Vencido', color: '#FF0000', nivel: 10, descripcion: 'Documento vencido' },
-      { nombre: 'Por Vencer', color: '#FFFF00', nivel: 5, descripcion: 'Documento próximo a vencer' },
+      { nombre: 'En Trámite', codigo: 'EN_TRAMITE', color: '#FFA500', nivel: 2, descripcion: 'Documento en proceso de tramitación' },
+      { nombre: 'Vigente', codigo: 'VIGENTE', color: '#00FF00', nivel: 1, descripcion: 'Documento vigente y válido' },
+      { nombre: 'Vencido', codigo: 'VENCIDO', color: '#FF0000', nivel: 10, descripcion: 'Documento vencido' },
+      { nombre: 'Por Vencer', codigo: 'POR_VENCER', color: '#FFFF00', nivel: 5, descripcion: 'Documento próximo a vencer' },
     ];
-    
+
     for (const estadoData of estadosIniciales) {
-      await Estado.findOrCreate({
+      const [estado] = await Estado.findOrCreate({
         where: { nombre: estadoData.nombre },
         defaults: estadoData,
       });
+
+      // Actualizar código si no existe (para estados existentes sin código)
+      if (!estado.codigo) {
+        await estado.update({ codigo: estadoData.codigo });
+      }
     }
     
     console.log('Estados iniciales creados.');

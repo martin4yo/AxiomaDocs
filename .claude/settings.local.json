@@ -22,7 +22,10 @@
       "Bash(./deploy-new-version.sh:*)",
       "Bash(curl:*)",
       "Bash(nslookup:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(dir:*)",
+      "Bash(move env .env)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

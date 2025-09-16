@@ -374,7 +374,7 @@ const Entidades: React.FC = () => {
                   <React.Fragment key={entidad.id}>
                     <tr>
                       <td className="font-medium">{entidad.razonSocial}</td>
-                      <td>{entidad.cuit}</td>
+                      <td className="min-w-28 whitespace-nowrap">{entidad.cuit}</td>
                       <td>{entidad.localidad || '-'}</td>
                       <td>{entidad.telefono || '-'}</td>
                       <td>

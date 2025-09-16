@@ -1,9 +1,14 @@
-import React from 'react';
-import { useQuery } from 'react-query';
-import { Users, FileText, Building2, AlertTriangle, Clock, LayoutDashboard } from 'lucide-react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { Users, FileText, Building2, AlertTriangle, Clock, LayoutDashboard, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { dashboardService, DashboardStats, DocumentoPorVencer } from '../services/dashboard';
+import { estadoDocumentosService, UltimaActualizacion } from '../services/estadoDocumentos';
+import toast from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
+  const [showActualizacionModal, setShowActualizacionModal] = useState(false);
+  const queryClient = useQueryClient();
+
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>(
     'dashboard-stats',
     dashboardService.getStats,
@@ -14,6 +19,28 @@ const Dashboard: React.FC = () => {
     'documentos-por-vencer',
     () => dashboardService.getDocumentosPorVencer(30),
     { refetchInterval: 60000 } // Refrescar cada minuto
+  );
+
+  const { data: ultimaActualizacion } = useQuery(
+    'ultima-actualizacion',
+    estadoDocumentosService.obtenerUltimaActualizacion,
+    { refetchInterval: 60000 }
+  );
+
+  const actualizacionMutation = useMutation(
+    estadoDocumentosService.actualizarEstados,
+    {
+      onSuccess: (data) => {
+        toast.success(`Actualización completada: ${data.actualizados} documentos actualizados`);
+        queryClient.invalidateQueries('dashboard-stats');
+        queryClient.invalidateQueries('documentos-por-vencer');
+        queryClient.invalidateQueries('ultima-actualizacion');
+        setShowActualizacionModal(false);
+      },
+      onError: (error: any) => {
+        toast.error(error.response?.data?.mensaje || 'Error al actualizar estados');
+      }
+    }
   );
 
   const statsCards = [
@@ -54,14 +81,61 @@ const Dashboard: React.FC = () => {
     });
   };
 
+  const formatDateFull = (dateString: string) => {
+    return new Date(dateString).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="pt-6 mt-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <LayoutDashboard className="h-8 w-8 mr-3 text-indigo-600" />
-          Dashboard
-        </h1>
-        <p className="text-gray-600">Resumen general del sistema</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <LayoutDashboard className="h-8 w-8 mr-3 text-indigo-600" />
+              Dashboard
+            </h1>
+            <p className="text-gray-600">Resumen general del sistema</p>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {/* Información de última actualización */}
+            {ultimaActualizacion?.ultimaActualizacion && (
+              <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
+                <div className="flex items-center">
+                  {ultimaActualizacion.ultimaActualizacion.error ? (
+                    <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                  )}
+                  <span>
+                    Última actualización: {formatDateFull(ultimaActualizacion.ultimaActualizacion.fecha)}
+                  </span>
+                </div>
+                {ultimaActualizacion.ultimaActualizacion.actualizados !== undefined && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    {ultimaActualizacion.ultimaActualizacion.actualizados} documentos actualizados
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Botón de actualización manual */}
+            <button
+              onClick={() => setShowActualizacionModal(true)}
+              className="btn-primary flex items-center"
+              disabled={actualizacionMutation.isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${actualizacionMutation.isLoading ? 'animate-spin' : ''}`} />
+              Actualizar Estados
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -205,6 +279,74 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación de actualización */}
+      {showActualizacionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <RefreshCw className="h-6 w-6 text-indigo-600 mr-3" />
+              <h3 className="text-lg font-semibold">Actualizar Estados de Documentos</h3>
+            </div>
+
+            <div className="mb-4 text-gray-600">
+              <p className="mb-3">
+                Esta acción revisará todos los documentos del sistema y actualizará sus estados según las fechas de vencimiento configuradas.
+              </p>
+
+              <div className="bg-blue-50 p-3 rounded-lg text-sm">
+                <p className="font-medium mb-2">Los documentos se actualizarán de la siguiente manera:</p>
+                <ul className="space-y-1 ml-4">
+                  <li>• <span className="font-medium">Vencidos:</span> Fecha de vencimiento pasada</li>
+                  <li>• <span className="font-medium">Por Vencer:</span> Dentro de los días de anticipación configurados</li>
+                  <li>• <span className="font-medium">Vigente:</span> Fuera del rango de días de anticipación</li>
+                </ul>
+              </div>
+
+              {ultimaActualizacion?.tareasProgamadas && ultimaActualizacion.tareasProgamadas.length > 0 && (
+                <div className="mt-3 bg-gray-50 p-3 rounded-lg text-sm">
+                  <p className="font-medium mb-2">Tareas automáticas activas:</p>
+                  <ul className="space-y-1 ml-4">
+                    {ultimaActualizacion.tareasProgamadas.map(tarea => (
+                      <li key={tarea.nombre}>
+                        • {tarea.nombre.replace(/-/g, ' ')}
+                        {tarea.activo && <span className="text-green-600 ml-2">(Activa)</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowActualizacionModal(false)}
+                className="btn-secondary"
+                disabled={actualizacionMutation.isLoading}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => actualizacionMutation.mutate()}
+                className="btn-primary flex items-center"
+                disabled={actualizacionMutation.isLoading}
+              >
+                {actualizacionMutation.isLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Actualizando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Actualizar Ahora
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

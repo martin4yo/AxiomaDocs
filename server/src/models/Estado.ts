@@ -5,6 +5,7 @@ import Usuario from './Usuario';
 export interface EstadoAttributes {
   id?: number;
   nombre: string;
+  codigo?: string;
   color: string;
   nivel: number;
   descripcion?: string;
@@ -17,6 +18,7 @@ export interface EstadoAttributes {
 class Estado extends Model<EstadoAttributes> implements EstadoAttributes {
   public id!: number;
   public nombre!: string;
+  public codigo?: string;
   public color!: string;
   public nivel!: number;
   public descripcion?: string;
@@ -36,6 +38,12 @@ Estado.init({
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
+  },
+  codigo: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    unique: true,
+    comment: 'Código único del estado para identificación del sistema (VIGENTE, POR_VENCER, VENCIDO, etc)',
   },
   color: {
     type: DataTypes.STRING,

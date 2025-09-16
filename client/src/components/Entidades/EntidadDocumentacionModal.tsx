@@ -27,6 +27,7 @@ interface EntidadDocumentacionForm {
   // Campos de fechas específicas por entidad (solo si el documento no es universal)
   fechaEmision?: string;
   fechaTramitacion?: string;
+  fechaVencimiento?: string;
 }
 
 const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
@@ -45,12 +46,21 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<EntidadDocumentacionForm>();
 
   const documentacionId = watch('documentacionId');
   const enviarPorMail = watch('enviarPorMail');
   const fechaEmision = watch('fechaEmision');
+  const fechaVencimiento = watch('fechaVencimiento');
+
+  // Obtener fecha mínima (día actual + 1)
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   const { data: documentacionList } = useQuery(
     'documentacion-all',
@@ -78,6 +88,7 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
           // estadoId removed as it doesn't exist in EntidadDocumentacion
           fechaEmision: entidadDocumentacion.fechaEmision ? formatDateForInput(entidadDocumentacion.fechaEmision) : '',
           fechaTramitacion: entidadDocumentacion.fechaTramitacion ? formatDateForInput(entidadDocumentacion.fechaTramitacion) : '',
+          fechaVencimiento: entidadDocumentacion.fechaVencimiento ? formatDateForInput(entidadDocumentacion.fechaVencimiento) : '',
         });
         
         // Use the full document data from the list, or fallback to the one from entidadDocumentacion
@@ -91,6 +102,7 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
           estadoId: undefined,
           fechaEmision: '',
           fechaTramitacion: '',
+          fechaVencimiento: '',
         });
         setSelectedDoc(null);
       }
@@ -115,6 +127,16 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
       }
     }
   }, [entidadDocumentacion, documentacionList, selectedDoc]);
+
+  // Establecer fecha de vencimiento sugerida por defecto para documentos no universales
+  useEffect(() => {
+    if (selectedDoc && !selectedDoc.esUniversal && fechaEmision && !fechaVencimiento) {
+      const emision = new Date(fechaEmision);
+      emision.setDate(emision.getDate() + selectedDoc.diasVigencia);
+      const fechaCalculada = emision.toISOString().split('T')[0];
+      setValue('fechaVencimiento', fechaCalculada);
+    }
+  }, [selectedDoc, fechaEmision, fechaVencimiento, setValue]);
 
   const calculateVencimiento = () => {
     if (selectedDoc && !selectedDoc.esUniversal && fechaEmision && selectedDoc.diasVigencia) {
@@ -294,10 +316,37 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
                     Fecha específica de tramitación para esta entidad
                   </p>
                 </div>
+
+                <div>
+                  <label htmlFor="fechaVencimiento" className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha de Vencimiento
+                  </label>
+                  <input
+                    {...register('fechaVencimiento', {
+                      validate: (value) => {
+                        if (value) {
+                          const selectedDate = new Date(value);
+                          const minDate = new Date();
+                          minDate.setDate(minDate.getDate() + 1);
+                          if (selectedDate < minDate) {
+                            return 'La fecha de vencimiento debe ser posterior al día actual';
+                          }
+                        }
+                        return true;
+                      }
+                    })}
+                    type="date"
+                    min={getMinDate()}
+                    className="input w-full"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Fecha específica de vencimiento para esta entidad
+                  </p>
+                </div>
               </div>
 
               {/* Mostrar fecha de vencimiento calculada para documentos no universales */}
-              {calculateVencimiento() && (
+              {calculateVencimiento() && !fechaVencimiento && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-md">
                   <p className="text-sm text-blue-800">
                     <strong>Fecha de vencimiento calculada:</strong> {calculateVencimiento()}
