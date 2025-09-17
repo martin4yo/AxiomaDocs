@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Users, FileText, Building2, AlertTriangle, Clock, LayoutDashboard, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
-import { dashboardService, DashboardStats, DocumentoPorVencer } from '../services/dashboard';
+import { Users, FileText, Building2, AlertTriangle, Clock, LayoutDashboard, RefreshCw, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { dashboardService, DashboardStats, DocumentoPorVencer, DocumentoVencido } from '../services/dashboard';
 import { estadoDocumentosService } from '../services/estadoDocumentos';
 import toast from 'react-hot-toast';
 
@@ -21,6 +21,12 @@ const Dashboard: React.FC = () => {
     { refetchInterval: 60000 } // Refrescar cada minuto
   );
 
+  const { data: documentosVencidos, isLoading: vencidosLoading } = useQuery<DocumentoVencido[]>(
+    'documentos-vencidos',
+    () => dashboardService.getDocumentosVencidos(20),
+    { refetchInterval: 60000 } // Refrescar cada minuto
+  );
+
   const { data: ultimaActualizacion } = useQuery(
     'ultima-actualizacion',
     estadoDocumentosService.obtenerUltimaActualizacion,
@@ -34,6 +40,7 @@ const Dashboard: React.FC = () => {
         toast.success(`Actualización completada: ${data.actualizados} documentos actualizados`);
         queryClient.invalidateQueries('dashboard-stats');
         queryClient.invalidateQueries('documentos-por-vencer');
+        queryClient.invalidateQueries('documentos-vencidos');
         queryClient.invalidateQueries('ultima-actualizacion');
         setShowActualizacionModal(false);
       },
@@ -162,8 +169,8 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Dashboard Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Documentos por Vencer (30 días)</h3>
@@ -222,6 +229,68 @@ const Dashboard: React.FC = () => {
               <div className="text-center py-8 text-gray-500">
                 <AlertTriangle size={32} className="mx-auto mb-2 text-gray-400" />
                 <p>No hay documentos próximos a vencer</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Documentos Vencidos</h3>
+          </div>
+          <div className="card-content">
+            {vencidosLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+              </div>
+            ) : documentosVencidos && documentosVencidos.length > 0 ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {documentosVencidos.slice(0, 10).map((doc) => (
+                  <div key={`${doc.tipo}-${doc.id}`} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {doc.recurso.apellido}, {doc.recurso.nombre}
+                      </p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {doc.documentacion.codigo} - {doc.documentacion.descripcion}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Venció: {formatDate(doc.fechaVencimiento)}
+                      </p>
+                      {doc.tipo !== 'recurso' && (
+                        <p className="text-xs text-blue-600 font-medium">
+                          {doc.tipo === 'universal' ? 'UNIVERSAL' : 'ENTIDAD'}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center ml-3">
+                      <div className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <XCircle size={12} className="mr-1" />
+                        {doc.diasVencidos}d
+                      </div>
+                      {doc.estado && (
+                        <span
+                          className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                          style={{ backgroundColor: doc.estado.color + '20', color: doc.estado.color }}
+                        >
+                          {doc.estado.nombre}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {documentosVencidos.length > 10 && (
+                  <div className="text-center pt-3">
+                    <p className="text-sm text-gray-500">
+                      Y {documentosVencidos.length - 10} documentos más...
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <CheckCircle size={32} className="mx-auto mb-2 text-green-400" />
+                <p>No hay documentos vencidos</p>
               </div>
             )}
           </div>

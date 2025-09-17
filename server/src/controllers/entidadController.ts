@@ -12,6 +12,43 @@ import {
 import { AuthRequest } from '../middleware/auth';
 import { isDocumentoUniversal, getFechasForAsignacion, parseFechaLocal } from '../utils/documentHelpers';
 
+// Función para calcular el estado crítico de una entidad
+const calculateEstadoCritico = (entidad: any): any => {
+  const estados: any[] = [];
+
+  // 1. Estados de documentos asignados a la entidad (EntidadDocumentacion)
+  if (entidad.entidadDocumentacion) {
+    for (const entDoc of entidad.entidadDocumentacion) {
+      if (entDoc.documentacion?.estado) {
+        estados.push(entDoc.documentacion.estado);
+      }
+    }
+  }
+
+  // 2. Estados de documentos de recursos asignados a la entidad
+  if (entidad.entidadRecurso) {
+    for (const entRec of entidad.entidadRecurso) {
+      if (entRec.recurso?.recursoDocumentacion) {
+        for (const recDoc of entRec.recurso.recursoDocumentacion) {
+          if (recDoc.estado) {
+            estados.push(recDoc.estado);
+          }
+        }
+      }
+    }
+  }
+
+  // Encontrar el estado con mayor nivel (más crítico)
+  if (estados.length === 0) return null;
+
+  return estados.reduce((maxEstado, estado) => {
+    if (!maxEstado || estado.nivel > maxEstado.nivel) {
+      return estado;
+    }
+    return maxEstado;
+  }, null);
+};
+
 export const getEntidades = async (req: AuthRequest, res: Response) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
@@ -75,8 +112,19 @@ export const getEntidades = async (req: AuthRequest, res: Response) => {
       ]
     });
 
+    // Calcular el estado crítico para cada entidad
+    const entidadesConEstadoCritico = entidades.map(entidad => {
+      const entidadPlain = entidad.toJSON();
+      const estadoCritico = calculateEstadoCritico(entidadPlain);
+
+      return {
+        ...entidadPlain,
+        estadoCritico: estadoCritico
+      };
+    });
+
     res.json({
-      entidades,
+      entidades: entidadesConEstadoCritico,
       pagination: {
         currentPage: Number(page),
         totalPages: Math.ceil(count / Number(limit)),

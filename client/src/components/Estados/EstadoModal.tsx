@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import { Estado } from '../../types';
@@ -30,8 +30,12 @@ const EstadoModal: React.FC<EstadoModalProps> = ({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<EstadoForm>();
+
+  const watchedColor = watch('color');
 
   useEffect(() => {
     if (isOpen) {
@@ -122,8 +126,9 @@ const EstadoModal: React.FC<EstadoModalProps> = ({
             </label>
             <div className="flex items-center space-x-2">
               <input
-                {...register('color', { required: 'El color es requerido' })}
                 type="color"
+                value={watchedColor || '#000000'}
+                onChange={(e) => setValue('color', e.target.value)}
                 className="w-12 h-10 border border-gray-300 rounded cursor-pointer"
               />
               <input

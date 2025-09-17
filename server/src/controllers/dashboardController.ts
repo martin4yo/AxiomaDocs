@@ -1,12 +1,13 @@
 import { Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '../models/database';
-import { 
-  Recurso, 
-  Documentacion, 
-  Entidad, 
+import {
+  Recurso,
+  Documentacion,
+  Entidad,
   RecursoDocumentacion,
-  Estado 
+  EntidadDocumentacion,
+  Estado
 } from '../models';
 import { AuthRequest } from '../middleware/auth';
 
@@ -14,7 +15,7 @@ export const getStats = async (req: AuthRequest, res: Response) => {
   try {
     // Total recursos
     const totalRecursos = await Recurso.count();
-    
+
     // Recursos activos (sin fecha de baja)
     const recursosActivos = await Recurso.count({
       where: sequelize.where(sequelize.col('fechaBaja'), 'IS', null)
@@ -26,11 +27,11 @@ export const getStats = async (req: AuthRequest, res: Response) => {
     // Total entidades
     const totalEntidades = await Entidad.count();
 
-    // Documentos por vencer (próximos 30 días)
+    // Documentos por vencer (próximos 30 días) - RecursoDocumentacion + EntidadDocumentacion + Universal
     const fechaLimite = new Date();
     fechaLimite.setDate(fechaLimite.getDate() + 30);
-    
-    const documentosPorVencer = await RecursoDocumentacion.count({
+
+    const documentosPorVencerRecurso = await RecursoDocumentacion.count({
       where: {
         fechaVencimiento: {
           [Op.between]: [new Date(), fechaLimite]
@@ -38,13 +39,80 @@ export const getStats = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // Documentos vencidos
-    const documentosVencidos = await RecursoDocumentacion.count({
+    // Documentos de entidades por vencer
+    console.log('🔍 Ejecutando consulta EntidadDocumentacion por vencer...');
+    const documentosPorVencerEntidad = await EntidadDocumentacion.count({
+      where: sequelize.where(
+        sequelize.col('fechaVencimiento'),
+        {
+          [Op.between]: [new Date(), fechaLimite],
+          [Op.not]: null
+        }
+      )
+    });
+    console.log('✅ EntidadDocumentacion por vencer:', documentosPorVencerEntidad);
+
+    // Documentos universales por vencer
+    console.log('🔍 Ejecutando consulta Documentacion universal por vencer...');
+    const documentosPorVencerUniversal = await Documentacion.count({
+      where: {
+        esUniversal: true,
+        fechaVencimiento: {
+          [Op.between]: [new Date(), fechaLimite]
+        }
+      }
+    });
+    console.log('✅ Documentacion universal por vencer:', documentosPorVencerUniversal);
+
+    const documentosPorVencer = documentosPorVencerRecurso + documentosPorVencerEntidad + documentosPorVencerUniversal;
+
+    // Documentos vencidos (RecursoDocumentacion + EntidadDocumentacion + Universal)
+    console.log('🔍 Ejecutando consulta RecursoDocumentacion vencidos...');
+    const documentosVencidosRecurso = await RecursoDocumentacion.count({
       where: {
         fechaVencimiento: {
           [Op.lt]: new Date()
         }
       }
+    });
+    console.log('✅ RecursoDocumentacion vencidos:', documentosVencidosRecurso);
+
+    // Documentos vencidos de entidades
+    console.log('🔍 Ejecutando consulta EntidadDocumentacion vencidos...');
+    const documentosVencidosEntidad = await EntidadDocumentacion.count({
+      where: sequelize.where(
+        sequelize.col('fechaVencimiento'),
+        {
+          [Op.lt]: new Date(),
+          [Op.not]: null
+        }
+      )
+    });
+    console.log('✅ EntidadDocumentacion vencidos:', documentosVencidosEntidad);
+
+    // Documentos universales vencidos
+    console.log('🔍 Ejecutando consulta Documentacion universal vencidos...');
+    const documentosVencidosUniversal = await Documentacion.count({
+      where: {
+        esUniversal: true,
+        fechaVencimiento: {
+          [Op.lt]: new Date()
+        }
+      }
+    });
+    console.log('✅ Documentacion universal vencidos:', documentosVencidosUniversal);
+
+    const documentosVencidos = documentosVencidosRecurso + documentosVencidosEntidad + documentosVencidosUniversal;
+
+    console.log('📊 Dashboard Stats Debug:', {
+      documentosVencidosRecurso,
+      documentosVencidosEntidad,
+      documentosVencidosUniversal,
+      totalVencidos: documentosVencidos,
+      documentosPorVencerRecurso,
+      documentosPorVencerEntidad,
+      documentosPorVencerUniversal,
+      totalPorVencer: documentosPorVencer
     });
 
     res.json({
@@ -64,11 +132,12 @@ export const getStats = async (req: AuthRequest, res: Response) => {
 export const getDocumentosPorVencer = async (req: AuthRequest, res: Response) => {
   try {
     const { dias = 30 } = req.query;
-    
+
     const fechaLimite = new Date();
     fechaLimite.setDate(fechaLimite.getDate() + Number(dias));
-    
-    const documentos = await RecursoDocumentacion.findAll({
+
+    // Documentos de recursos por vencer
+    const documentosRecurso = await RecursoDocumentacion.findAll({
       where: {
         fechaVencimiento: {
           [Op.between]: [new Date(), fechaLimite]
@@ -92,18 +161,99 @@ export const getDocumentosPorVencer = async (req: AuthRequest, res: Response) =>
         }
       ],
       order: [['fechaVencimiento', 'ASC']],
-      limit: 20
+      limit: 15
     });
 
+    // Documentos de entidades por vencer
+    const documentosEntidad = await EntidadDocumentacion.findAll({
+      where: sequelize.where(
+        sequelize.col('fechaVencimiento'),
+        {
+          [Op.between]: [new Date(), fechaLimite],
+          [Op.not]: null
+        }
+      ),
+      include: [
+        {
+          model: Entidad,
+          as: 'entidad',
+          attributes: ['id', 'codigo', 'nombre']
+        },
+        {
+          model: Documentacion,
+          as: 'documentacion',
+          attributes: ['id', 'codigo', 'descripcion']
+        }
+      ],
+      order: [['fechaVencimiento', 'ASC']],
+      limit: 10
+    });
+
+    // Documentos universales por vencer
+    const documentosUniversal = await Documentacion.findAll({
+      where: {
+        esUniversal: true,
+        fechaVencimiento: {
+          [Op.between]: [new Date(), fechaLimite]
+        }
+      },
+      include: [
+        {
+          model: Estado,
+          as: 'estado',
+          attributes: ['id', 'nombre', 'color']
+        }
+      ],
+      order: [['fechaVencimiento', 'ASC']],
+      limit: 5
+    });
+
+    // Formatear documentos de recursos
+    const documentosRecursoFormatted = documentosRecurso.map(doc => ({
+      id: doc.id,
+      fechaVencimiento: doc.fechaVencimiento,
+      recurso: doc.recurso,
+      documentacion: doc.documentacion,
+      estado: doc.estado,
+      tipo: 'recurso'
+    }));
+
+    // Formatear documentos de entidades
+    const documentosEntidadFormatted = documentosEntidad.map(doc => ({
+      id: doc.id,
+      fechaVencimiento: doc.fechaVencimiento,
+      recurso: { apellido: 'ENTIDAD', nombre: (doc as any).entidad?.nombre || 'Sin entidad' },
+      documentacion: (doc as any).documentacion,
+      estado: { id: 0, nombre: 'ENTIDAD', color: '#f59e0b' }, // Color amarillo para entidades
+      tipo: 'entidad'
+    }));
+
+    // Formatear documentos universales
+    const documentosUniversalFormatted = documentosUniversal.map(doc => ({
+      id: doc.id,
+      fechaVencimiento: doc.fechaVencimiento,
+      recurso: { apellido: 'UNIVERSAL', nombre: doc.codigo },
+      documentacion: { codigo: doc.codigo, descripcion: doc.descripcion },
+      estado: (doc as any).estado,
+      tipo: 'universal'
+    }));
+
+    // Combinar todos los documentos
+    const todosDocumentos = [...documentosRecursoFormatted, ...documentosEntidadFormatted, ...documentosUniversalFormatted];
+
+    // Ordenar por fecha de vencimiento y limitar a 20
+    todosDocumentos.sort((a, b) => new Date(a.fechaVencimiento!).getTime() - new Date(b.fechaVencimiento!).getTime());
+    const documentosLimitados = todosDocumentos.slice(0, 20);
+
     // Calcular días para vencer
-    const documentosConDias = documentos.map(doc => {
+    const documentosConDias = documentosLimitados.map(doc => {
       const hoy = new Date();
       const fechaVenc = new Date(doc.fechaVencimiento!);
       const diffTime = fechaVenc.getTime() - hoy.getTime();
       const diasParaVencer = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       return {
-        ...doc.toJSON(),
+        ...doc,
         diasParaVencer
       };
     });
@@ -115,10 +265,144 @@ export const getDocumentosPorVencer = async (req: AuthRequest, res: Response) =>
   }
 };
 
+export const getDocumentosVencidos = async (req: AuthRequest, res: Response) => {
+  try {
+    const { limit = 20 } = req.query;
+    console.log('📊 Obteniendo documentos vencidos...');
+
+    // Documentos de recursos vencidos
+    const documentosRecurso = await RecursoDocumentacion.findAll({
+      where: {
+        fechaVencimiento: {
+          [Op.lt]: new Date()
+        }
+      },
+      include: [
+        {
+          model: Recurso,
+          as: 'recurso',
+          attributes: ['id', 'codigo', 'apellido', 'nombre']
+        },
+        {
+          model: Documentacion,
+          as: 'documentacion',
+          attributes: ['id', 'codigo', 'descripcion']
+        },
+        {
+          model: Estado,
+          as: 'estado',
+          attributes: ['id', 'nombre', 'color']
+        }
+      ],
+      order: [['fechaVencimiento', 'DESC']],
+      limit: 10
+    });
+
+    // Documentos de entidades vencidos
+    const documentosEntidad = await EntidadDocumentacion.findAll({
+      where: sequelize.where(
+        sequelize.col('EntidadDocumentacion.fechaVencimiento'),
+        {
+          [Op.lt]: new Date(),
+          [Op.not]: null
+        }
+      ),
+      include: [
+        {
+          model: Entidad,
+          as: 'entidad',
+          attributes: ['id', 'razonSocial', 'cuit']
+        },
+        {
+          model: Documentacion,
+          as: 'documentacion',
+          attributes: ['id', 'codigo', 'descripcion']
+        }
+      ],
+      order: [['fechaVencimiento', 'DESC']],
+      limit: 10
+    });
+
+    // Documentos universales vencidos
+    const documentosUniversal = await Documentacion.findAll({
+      where: {
+        esUniversal: true,
+        fechaVencimiento: {
+          [Op.lt]: new Date()
+        }
+      },
+      include: [
+        {
+          model: Estado,
+          as: 'estado',
+          attributes: ['id', 'nombre', 'color']
+        }
+      ],
+      order: [['fechaVencimiento', 'DESC']],
+      limit: 5
+    });
+
+    // Formatear documentos de recursos
+    const documentosRecursoFormatted = documentosRecurso.map(doc => ({
+      id: doc.id,
+      fechaVencimiento: doc.fechaVencimiento,
+      recurso: doc.recurso,
+      documentacion: doc.documentacion,
+      estado: doc.estado,
+      tipo: 'recurso'
+    }));
+
+    // Formatear documentos de entidades
+    const documentosEntidadFormatted = documentosEntidad.map(doc => ({
+      id: doc.id,
+      fechaVencimiento: doc.fechaVencimiento,
+      recurso: { apellido: 'ENTIDAD', nombre: (doc as any).entidad?.razonSocial || 'Sin entidad' },
+      documentacion: (doc as any).documentacion,
+      estado: { id: 0, nombre: 'VENCIDO', color: '#dc2626' }, // Color rojo para vencidos
+      tipo: 'entidad'
+    }));
+
+    // Formatear documentos universales
+    const documentosUniversalFormatted = documentosUniversal.map(doc => ({
+      id: doc.id,
+      fechaVencimiento: doc.fechaVencimiento,
+      recurso: { apellido: 'UNIVERSAL', nombre: doc.codigo },
+      documentacion: { codigo: doc.codigo, descripcion: doc.descripcion },
+      estado: (doc as any).estado,
+      tipo: 'universal'
+    }));
+
+    // Combinar todos los documentos
+    const todosDocumentos = [...documentosRecursoFormatted, ...documentosEntidadFormatted, ...documentosUniversalFormatted];
+
+    // Ordenar por fecha de vencimiento (más recientes primero) y limitar
+    todosDocumentos.sort((a, b) => new Date(b.fechaVencimiento!).getTime() - new Date(a.fechaVencimiento!).getTime());
+    const documentosLimitados = todosDocumentos.slice(0, Number(limit));
+
+    // Calcular días vencidos
+    const documentosConDias = documentosLimitados.map(doc => {
+      const hoy = new Date();
+      const fechaVenc = new Date(doc.fechaVencimiento!);
+      const diffTime = hoy.getTime() - fechaVenc.getTime();
+      const diasVencidos = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      return {
+        ...doc,
+        diasVencidos
+      };
+    });
+
+    res.json(documentosConDias);
+  } catch (error) {
+    console.error('Error obteniendo documentos vencidos:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
 export const getActividadReciente = async (req: AuthRequest, res: Response) => {
   try {
     const { limit = 10 } = req.query;
-    
+
     // Por ahora retornamos actividad simulada
     // En una implementación real, tendríamos una tabla de auditoria/logs
     const actividades = [

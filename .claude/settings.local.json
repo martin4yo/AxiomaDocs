@@ -31,7 +31,11 @@
       "Bash(mysql:*)",
       "Bash(pkill:*)",
       "Bash(netstat:*)",
-      "Bash(./kill-port-5000.bat)"
+      "Bash(./kill-port-5000.bat)",
+      "Bash(DB_ALLOW_ALTER=true ./kill-port-5000.bat)",
+      "Bash(npx sequelize-cli:*)",
+      "Bash(tasklist)",
+      "Bash(npx kill-port:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

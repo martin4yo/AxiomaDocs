@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2, FileText, Search, Eye, AlertCircle, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Search, Eye, AlertCircle, Users, Building2, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Recurso, RecursoDocumentacion } from '../types';
 import { recursosService } from '../services/recursos';
@@ -8,9 +8,11 @@ import RecursoModal from '../components/Recursos/RecursoModal';
 import DocumentoModal from '../components/Recursos/DocumentoModal';
 import ConfirmDialog from '../components/Common/ConfirmDialog';
 import ExportButtons from '../components/Common/ExportButtons';
+import ArchivoSubGrid from '../components/Archivos/ArchivoSubGrid';
 import { getHighestLevelEstado, getProximosVencimientos } from '../utils/estadoUtils';
 import { prepareRecursoData } from '../utils/exportUtils';
 import { formatDateLocal } from '../utils/dateUtils';
+import { isDocumentoUniversal } from '../utils/documentHelpers';
 
 const Recursos: React.FC = () => {
   const [isRecursoModalOpen, setIsRecursoModalOpen] = useState(false);
@@ -23,6 +25,8 @@ const Recursos: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showDocuments, setShowDocuments] = useState<{[key: number]: boolean}>({});
+  const [showEntidades, setShowEntidades] = useState<{[key: number]: boolean}>({});
+  const [showDocumentacionArchivos, setShowDocumentacionArchivos] = useState<{[key: number]: boolean}>({});
   
   const queryClient = useQueryClient();
 
@@ -198,6 +202,20 @@ const Recursos: React.FC = () => {
     }));
   };
 
+  const toggleEntidades = (recursoId: number) => {
+    setShowEntidades(prev => ({
+      ...prev,
+      [recursoId]: !prev[recursoId]
+    }));
+  };
+
+  const toggleDocumentacionArchivos = (documentacionId: number) => {
+    setShowDocumentacionArchivos(prev => ({
+      ...prev,
+      [documentacionId]: !prev[documentacionId]
+    }));
+  };
+
   // Usar la nueva función de formateo de fechas locales
 
 
@@ -336,6 +354,13 @@ const Recursos: React.FC = () => {
                             <Eye size={16} />
                           </button>
                           <button
+                            onClick={() => toggleEntidades(recurso.id)}
+                            className="p-1 text-gray-600 hover:text-purple-600"
+                            title="Ver entidades asignadas"
+                          >
+                            <Building2 size={16} />
+                          </button>
+                          <button
                             onClick={() => handleAddDocument(recurso)}
                             className="p-1 text-gray-600 hover:text-green-600"
                             title="Asignar documento"
@@ -382,8 +407,9 @@ const Recursos: React.FC = () => {
                                   </thead>
                                   <tbody>
                                     {recurso.recursoDocumentacion.map((doc) => (
-                                      <tr key={doc.id} className="border-b border-gray-100">
-                                        <td className="py-2">
+                                      <React.Fragment key={doc.id}>
+                                        <tr className="border-b border-gray-100">
+                                          <td className="py-2">
                                           {doc.documentacion?.codigo} - {doc.documentacion?.descripcion}
                                         </td>
                                         <td className="py-2">{formatDateLocal(doc.fechaEmision)}</td>
@@ -401,6 +427,15 @@ const Recursos: React.FC = () => {
                                         </td>
                                         <td className="py-2">
                                           <div className="flex space-x-1">
+                                            {!isDocumentoUniversal(doc.documentacion) && (
+                                              <button
+                                                onClick={() => toggleDocumentacionArchivos(doc.id)}
+                                                className="p-1 text-gray-600 hover:text-orange-600"
+                                                title="Ver archivos"
+                                              >
+                                                <Paperclip size={14} />
+                                              </button>
+                                            )}
                                             <button
                                               onClick={() => handleEditDocument(doc)}
                                               className="p-1 text-gray-600 hover:text-primary-600"
@@ -418,12 +453,79 @@ const Recursos: React.FC = () => {
                                           </div>
                                         </td>
                                       </tr>
+
+                                      {!isDocumentoUniversal(doc.documentacion) && showDocumentacionArchivos[doc.id] && (
+                                        <tr>
+                                          <td colSpan={6} className="p-0">
+                                            <div className="bg-orange-50 p-4 border-t">
+                                              <ArchivoSubGrid
+                                                tipo="recurso-documentacion"
+                                                referenceId={doc.id}
+                                                className=""
+                                              />
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                      </React.Fragment>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
                             ) : (
                               <p className="text-gray-500 text-sm">No hay documentos asignados</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+
+                    {/* Entities Row */}
+                    {showEntidades[recurso.id] && (
+                      <tr>
+                        <td colSpan={9} className="p-0">
+                          <div className="bg-purple-50 p-4 border-t">
+                            <h4 className="font-medium mb-3">Entidades Asignadas</h4>
+                            {recurso.entidadRecurso && recurso.entidadRecurso.length > 0 ? (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-purple-200">
+                                      <th className="text-left py-2">Entidad</th>
+                                      <th className="text-left py-2">CUIT</th>
+                                      <th className="text-left py-2">Fecha Inicio</th>
+                                      <th className="text-left py-2">Fecha Fin</th>
+                                      <th className="text-left py-2">Estado</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {recurso.entidadRecurso.map((entRec) => (
+                                      <tr key={entRec.id} className="border-b border-purple-100">
+                                        <td className="py-2 font-medium">
+                                          {entRec.entidad?.razonSocial || '-'}
+                                        </td>
+                                        <td className="py-2">
+                                          {entRec.entidad?.cuit || '-'}
+                                        </td>
+                                        <td className="py-2">
+                                          {formatDateLocal(entRec.fechaInicio)}
+                                        </td>
+                                        <td className="py-2">
+                                          {entRec.fechaFin ? formatDateLocal(entRec.fechaFin) : '-'}
+                                        </td>
+                                        <td className="py-2">
+                                          <span className={`status-badge ${entRec.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {entRec.activo ? 'Activo' : 'Inactivo'}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm">No hay entidades asignadas</p>
                             )}
                           </div>
                         </td>

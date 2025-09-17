@@ -3,7 +3,7 @@ import sequelize from './database';
 
 class EstadoDocumentoLog extends Model {
   public id!: number;
-  public tipoDocumento!: 'recurso' | 'entidad';
+  public tipoDocumento!: 'recurso' | 'entidad' | 'universal';
   public documentacionId!: number;
   public recursoId?: number;
   public entidadId?: number;
@@ -24,7 +24,7 @@ EstadoDocumentoLog.init(
       primaryKey: true,
     },
     tipoDocumento: {
-      type: DataTypes.ENUM('recurso', 'entidad'),
+      type: DataTypes.ENUM('recurso', 'entidad', 'universal'),
       allowNull: false,
     },
     documentacionId: {

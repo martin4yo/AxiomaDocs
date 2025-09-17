@@ -156,8 +156,8 @@ export const prepareDocumentacionData = (documentos: any[]) => {
 export const prepareEntidadData = (entidades: any[]) => {
   return entidades.map(entidad => ({
     ...entidad,
-    estadoCritico: entidad.estadoCritico || 'Normal',
-    totalRecursos: entidad.totalRecursos || 0,
+    estadoCritico: entidad.estadoCritico?.nombre || '-',
+    totalRecursos: entidad.entidadRecurso?.length || 0,
     fechaCreacion: entidad.createdAt ? format(new Date(entidad.createdAt), 'dd/MM/yyyy') : ''
   }));
 };

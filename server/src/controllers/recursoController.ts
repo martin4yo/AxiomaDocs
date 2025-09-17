@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { Op } from 'sequelize';
-import { Recurso, RecursoDocumentacion, Documentacion, Estado } from '../models';
+import { Recurso, RecursoDocumentacion, Documentacion, Estado, EntidadRecurso, Entidad } from '../models';
 import { AuthRequest } from '../middleware/auth';
 import { isDocumentoUniversal, getFechasForAsignacion, parseFechaLocal } from '../utils/documentHelpers';
 
@@ -35,6 +35,16 @@ export const getRecursos = async (req: AuthRequest, res: Response) => {
             {
               model: Estado,
               as: 'estado',
+            }
+          ]
+        },
+        {
+          model: EntidadRecurso,
+          as: 'entidadRecurso',
+          include: [
+            {
+              model: Entidad,
+              as: 'entidad',
             }
           ]
         }
@@ -72,6 +82,16 @@ export const getRecurso = async (req: AuthRequest, res: Response) => {
             {
               model: Estado,
               as: 'estado',
+            }
+          ]
+        },
+        {
+          model: EntidadRecurso,
+          as: 'entidadRecurso',
+          include: [
+            {
+              model: Entidad,
+              as: 'entidad',
             }
           ]
         }
@@ -274,7 +294,7 @@ export const addDocumentToRecurso = async (req: AuthRequest, res: Response) => {
 export const updateRecursoDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { recursoDocId } = req.params;
-    const { fechaEmision, fechaTramitacion, estadoId } = req.body;
+    const { fechaEmision, fechaTramitacion, fechaVencimiento, estadoId } = req.body;
     const userId = req.user!.id;
 
     const recursoDoc = await RecursoDocumentacion.findByPk(recursoDocId, {
@@ -303,7 +323,8 @@ export const updateRecursoDocumentacion = async (req: AuthRequest, res: Response
       // Si no es universal, permitir editar fechas
       const fechasParaAsignacion = getFechasForAsignacion(recursoDoc.documentacion!, {
         fechaEmision: fechaEmision ? new Date(fechaEmision) : undefined,
-        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : undefined
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : undefined,
+        fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : undefined
       });
 
       await recursoDoc.update({

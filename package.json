@@ -4,7 +4,7 @@
   "description": "Document management system for resources",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm run dev",
     "build": "cd client && npm run build && cd ../server && npm run build",
@@ -13,10 +13,17 @@
     "deploy:prod": "npm run configure && npm run build && ./deploy-production.sh",
     "deploy:win": "npm run configure && npm run build && deploy-new-version.bat"
   },
-  "keywords": ["document-management", "resources", "typescript"],
+  "keywords": [
+    "document-management",
+    "resources",
+    "typescript"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "axios": "^1.12.2"
   }
 }

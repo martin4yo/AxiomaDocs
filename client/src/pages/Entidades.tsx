@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2, FileText, Users, Search, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Users, Search, Building2, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Entidad, EntidadDocumentacion, EntidadRecurso } from '../types';
 import { entidadesService } from '../services/entidades';
@@ -9,9 +9,11 @@ import EntidadDocumentacionModal from '../components/Entidades/EntidadDocumentac
 import EntidadRecursoModal from '../components/Entidades/EntidadRecursoModal';
 import ConfirmDialog from '../components/Common/ConfirmDialog';
 import ExportButtons from '../components/Common/ExportButtons';
-import { getHighestLevelEstadoFromEntidad } from '../utils/estadoUtils';
+import ArchivoSubGrid from '../components/Archivos/ArchivoSubGrid';
 import { prepareEntidadData } from '../utils/exportUtils';
 import { formatDateLocal } from '../utils/dateUtils';
+import { getHighestLevelEstado } from '../utils/estadoUtils';
+import { isDocumentoUniversal } from '../utils/documentHelpers';
 
 const Entidades: React.FC = () => {
   const [isEntidadModalOpen, setIsEntidadModalOpen] = useState(false);
@@ -28,6 +30,7 @@ const Entidades: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showDocumentacion, setShowDocumentacion] = useState<{[key: number]: boolean}>({});
   const [showRecursos, setShowRecursos] = useState<{[key: number]: boolean}>({});
+  const [showDocumentacionArchivos, setShowDocumentacionArchivos] = useState<{[key: number]: boolean}>({});
   
   const queryClient = useQueryClient();
 
@@ -287,6 +290,13 @@ const Entidades: React.FC = () => {
     }));
   };
 
+  const toggleDocumentacionArchivos = (documentacionId: number) => {
+    setShowDocumentacionArchivos(prev => ({
+      ...prev,
+      [documentacionId]: !prev[documentacionId]
+    }));
+  };
+
   // Usar la nueva función de formateo de fechas locales
 
   if (isLoading) {
@@ -390,18 +400,14 @@ const Entidades: React.FC = () => {
                         ) : '-'}
                       </td>
                       <td>
-                        {(() => {
-                          const estadoCritico = getHighestLevelEstadoFromEntidad(entidad.entidadRecurso);
-                          if (!estadoCritico) return '-';
-                          return (
-                            <span 
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                              style={{ backgroundColor: estadoCritico.color + '20', color: estadoCritico.color }}
-                            >
-                              {estadoCritico.nombre}
-                            </span>
-                          );
-                        })()}
+                        {entidad.estadoCritico ? (
+                          <span
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                            style={{ backgroundColor: entidad.estadoCritico.color + '20', color: entidad.estadoCritico.color }}
+                          >
+                            {entidad.estadoCritico.nombre}
+                          </span>
+                        ) : '-'}
                       </td>
                       <td>
                         <div className="flex items-center text-blue-600">
@@ -483,7 +489,8 @@ const Entidades: React.FC = () => {
                                   </thead>
                                   <tbody>
                                     {entidad.entidadDocumentacion.map((doc) => (
-                                      <tr key={doc.id} className="border-b border-gray-100">
+                                      <React.Fragment key={doc.id}>
+                                        <tr className="border-b border-gray-100">
                                         <td className="py-2">
                                           {doc.documentacion?.codigo} - {doc.documentacion?.descripcion}
                                         </td>
@@ -513,6 +520,15 @@ const Entidades: React.FC = () => {
                                         <td className="py-2">{doc.mailDestino || '-'}</td>
                                         <td className="py-2">
                                           <div className="flex space-x-1">
+                                            {!isDocumentoUniversal(doc.documentacion) && (
+                                              <button
+                                                onClick={() => toggleDocumentacionArchivos(doc.id)}
+                                                className="p-1 text-gray-600 hover:text-orange-600"
+                                                title="Ver archivos"
+                                              >
+                                                <Paperclip size={14} />
+                                              </button>
+                                            )}
                                             <button
                                               onClick={() => handleEditDocumentacion(doc)}
                                               className="p-1 text-gray-600 hover:text-primary-600"
@@ -530,6 +546,21 @@ const Entidades: React.FC = () => {
                                           </div>
                                         </td>
                                       </tr>
+
+                                      {!isDocumentoUniversal(doc.documentacion) && showDocumentacionArchivos[doc.id] && (
+                                        <tr>
+                                          <td colSpan={9} className="p-0">
+                                            <div className="bg-orange-50 p-4 border-t">
+                                              <ArchivoSubGrid
+                                                tipo="entidad-documentacion"
+                                                referenceId={doc.id}
+                                                className=""
+                                              />
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                      </React.Fragment>
                                     ))}
                                   </tbody>
                                 </table>
@@ -542,10 +573,11 @@ const Entidades: React.FC = () => {
                       </tr>
                     )}
 
+
                     {/* Recursos Row */}
                     {showRecursos[entidad.id] && (
                       <tr>
-                        <td colSpan={8} className="p-0">
+                        <td colSpan={9} className="p-0">
                           <div className="bg-green-50 p-4 border-t">
                             <h4 className="font-medium mb-3">Recursos Asignados</h4>
                             {entidad.entidadRecurso && entidad.entidadRecurso.length > 0 ? (
@@ -557,6 +589,7 @@ const Entidades: React.FC = () => {
                                       <th className="text-left py-2">Fecha Inicio</th>
                                       <th className="text-left py-2">Fecha Fin</th>
                                       <th className="text-left py-2">Estado</th>
+                                      <th className="text-left py-2">Estado Crítico</th>
                                       <th className="text-left py-2 w-24">Acciones</th>
                                     </tr>
                                   </thead>
@@ -572,6 +605,20 @@ const Entidades: React.FC = () => {
                                           <span className={`status-badge ${recursoEnt.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                             {recursoEnt.activo ? 'Activo' : 'Inactivo'}
                                           </span>
+                                        </td>
+                                        <td className="py-2">
+                                          {(() => {
+                                            const estadoCritico = getHighestLevelEstado(recursoEnt.recurso?.recursoDocumentacion);
+                                            if (!estadoCritico) return '-';
+                                            return (
+                                              <span
+                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                                style={{ backgroundColor: estadoCritico.color + '20', color: estadoCritico.color }}
+                                              >
+                                                {estadoCritico.nombre}
+                                              </span>
+                                            );
+                                          })()}
                                         </td>
                                         <td className="py-2">
                                           <div className="flex space-x-1">

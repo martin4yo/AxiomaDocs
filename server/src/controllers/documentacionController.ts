@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { Op } from 'sequelize';
-import { Documentacion, Estado, RecursoDocumentacion, Recurso } from '../models';
+import { Documentacion, Estado, RecursoDocumentacion, Recurso, EntidadDocumentacion, Entidad } from '../models';
 import { AuthRequest } from '../middleware/auth';
 import { calcularFechaVencimiento } from '../utils/documentHelpers';
 
@@ -38,6 +38,16 @@ export const getDocumentacion = async (req: AuthRequest, res: Response) => {
             {
               model: Estado,
               as: 'estado',
+            }
+          ]
+        },
+        {
+          model: EntidadDocumentacion,
+          as: 'entidadDocumentacion',
+          include: [
+            {
+              model: Entidad,
+              as: 'entidad',
             }
           ]
         }
@@ -88,6 +98,16 @@ export const getDocumentacionById = async (req: AuthRequest, res: Response) => {
               as: 'estado',
             }
           ]
+        },
+        {
+          model: EntidadDocumentacion,
+          as: 'entidadDocumentacion',
+          include: [
+            {
+              model: Entidad,
+              as: 'entidad',
+            }
+          ]
         }
       ]
     });
@@ -105,13 +125,20 @@ export const getDocumentacionById = async (req: AuthRequest, res: Response) => {
 
 export const createDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
-    const { codigo, descripcion, diasVigencia, diasAnticipacion, esObligatorio, esUniversal, estadoVencimientoId, estadoId, fechaEmision, fechaTramitacion } = req.body;
+    const { codigo, descripcion, diasVigencia, diasAnticipacion, esObligatorio, esUniversal, estadoVencimientoId, estadoId, fechaEmision, fechaTramitacion, fechaVencimiento: fechaVencimientoFromBody } = req.body;
     const userId = req.user!.id;
 
-    // Calcular fecha de vencimiento si es universal y se proporciona fecha de emisión
+    // Usar fecha de vencimiento del cuerpo de la petición si se proporciona,
+    // caso contrario calcular automáticamente solo si es universal y tiene fecha de emisión
     let fechaVencimiento = null;
-    if (esUniversal && fechaEmision) {
-      fechaVencimiento = calcularFechaVencimiento(new Date(fechaEmision), diasVigencia);
+    if (esUniversal) {
+      if (fechaVencimientoFromBody) {
+        // Si el usuario proporcionó una fecha manualmente, usarla
+        fechaVencimiento = fechaVencimientoFromBody;
+      } else if (fechaEmision) {
+        // Solo calcular automáticamente si no se proporcionó una fecha manual
+        fechaVencimiento = calcularFechaVencimiento(new Date(fechaEmision), diasVigencia);
+      }
     }
 
     const documentacion = await Documentacion.create({
@@ -170,7 +197,7 @@ export const createDocumentacion = async (req: AuthRequest, res: Response) => {
 export const updateDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { codigo, descripcion, diasVigencia, diasAnticipacion, esObligatorio, esUniversal, estadoVencimientoId, estadoId, fechaEmision, fechaTramitacion } = req.body;
+    const { codigo, descripcion, diasVigencia, diasAnticipacion, esObligatorio, esUniversal, estadoVencimientoId, estadoId, fechaEmision, fechaTramitacion, fechaVencimiento: fechaVencimientoFromBody } = req.body;
     const userId = req.user!.id;
 
     const documentacion = await Documentacion.findByPk(id);
@@ -179,12 +206,19 @@ export const updateDocumentacion = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Documentación no encontrada' });
     }
 
-    // Calcular fecha de vencimiento si es universal y se proporciona fecha de emisión
+    // Usar fecha de vencimiento del cuerpo de la petición si se proporciona,
+    // caso contrario calcular automáticamente solo si es universal y tiene fecha de emisión
     let fechaVencimiento = documentacion.fechaVencimiento;
-    if (esUniversal && fechaEmision) {
-      fechaVencimiento = calcularFechaVencimiento(new Date(fechaEmision), diasVigencia);
-    } else if (!esUniversal || !fechaEmision) {
-      // Si ya no es universal o se removió la fecha de emisión, limpiar vencimiento
+    if (esUniversal) {
+      if (fechaVencimientoFromBody) {
+        // Si el usuario proporcionó una fecha manualmente, usarla
+        fechaVencimiento = fechaVencimientoFromBody;
+      } else if (fechaEmision && !fechaVencimientoFromBody) {
+        // Solo calcular automáticamente si no se proporcionó una fecha manual
+        fechaVencimiento = calcularFechaVencimiento(new Date(fechaEmision), diasVigencia);
+      }
+    } else {
+      // Si ya no es universal, limpiar vencimiento
       fechaVencimiento = undefined;
     }
 

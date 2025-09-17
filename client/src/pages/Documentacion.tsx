@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { Plus, Edit, Trash2, Users, Search, Eye, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Search, Eye, FileText, Building2, Paperclip } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Documentacion, RecursoDocumentacion } from '../types';
 import { documentacionService } from '../services/documentacion';
@@ -8,7 +8,9 @@ import DocumentacionModal from '../components/Documentacion/DocumentacionModal';
 import RecursoDocumentoModal from '../components/Documentacion/RecursoDocumentoModal';
 import ConfirmDialog from '../components/Common/ConfirmDialog';
 import ExportButtons from '../components/Common/ExportButtons';
+import ArchivoSubGrid from '../components/Archivos/ArchivoSubGrid';
 import { prepareDocumentacionData } from '../utils/exportUtils';
+import { isDocumentoUniversal } from '../utils/documentHelpers';
 
 const DocumentacionPage: React.FC = () => {
   const [isDocumentacionModalOpen, setIsDocumentacionModalOpen] = useState(false);
@@ -21,6 +23,8 @@ const DocumentacionPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showRecursos, setShowRecursos] = useState<{[key: number]: boolean}>({});
+  const [showEntidades, setShowEntidades] = useState<{[key: number]: boolean}>({});
+  const [showArchivos, setShowArchivos] = useState<{[key: number]: boolean}>({});
   
   const queryClient = useQueryClient();
 
@@ -191,9 +195,36 @@ const DocumentacionPage: React.FC = () => {
     }));
   };
 
+  const toggleEntidades = (documentacionId: number) => {
+    setShowEntidades(prev => ({
+      ...prev,
+      [documentacionId]: !prev[documentacionId]
+    }));
+  };
+
+  const toggleArchivos = (documentacionId: number) => {
+    setShowArchivos(prev => ({
+      ...prev,
+      [documentacionId]: !prev[documentacionId]
+    }));
+  };
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('es-ES');
+    try {
+      // Extraer solo la parte de la fecha (YYYY-MM-DD) ignorando cualquier componente de tiempo
+      const dateOnly = dateString.split('T')[0];
+      const [year, month, day] = dateOnly.split('-');
+
+      if (!year || !month || !day) {
+        return 'Fecha inválida';
+      }
+
+      // Formatear directamente sin crear objeto Date para evitar problemas de zona horaria
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      return 'Fecha inválida';
+    }
   };
 
   if (isLoading) {
@@ -298,8 +329,8 @@ const DocumentacionPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="text-center">
-                        {doc.esUniversal && doc.fechaVencimiento ? 
-                          new Date(doc.fechaVencimiento).toLocaleDateString('es-ES') : 
+                        {doc.esUniversal && doc.fechaVencimiento ?
+                          formatDate(doc.fechaVencimiento) :
                           doc.esUniversal ? 'Sin calcular' : '-'
                         }
                       </td>
@@ -322,6 +353,22 @@ const DocumentacionPage: React.FC = () => {
                           >
                             <Eye size={16} />
                           </button>
+                          <button
+                            onClick={() => toggleEntidades(doc.id)}
+                            className="p-1 text-gray-600 hover:text-purple-600"
+                            title="Ver entidades asociadas"
+                          >
+                            <Building2 size={16} />
+                          </button>
+                          {isDocumentoUniversal(doc) && (
+                            <button
+                              onClick={() => toggleArchivos(doc.id)}
+                              className="p-1 text-gray-600 hover:text-orange-600"
+                              title="Ver archivos adjuntos"
+                            >
+                              <Paperclip size={16} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleAddRecurso(doc)}
                             className="p-1 text-gray-600 hover:text-green-600"
@@ -410,6 +457,74 @@ const DocumentacionPage: React.FC = () => {
                               </div>
                             ) : (
                               <p className="text-gray-500 text-sm">No hay recursos asignados</p>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Archivos Row */}
+                    {showArchivos[doc.id] && (
+                      <tr>
+                        <td colSpan={9} className="p-0">
+                          <ArchivoSubGrid
+                            tipo="documentacion"
+                            referenceId={doc.id}
+                            className="mx-4 mb-4"
+                          />
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Entities Row */}
+                    {showEntidades[doc.id] && (
+                      <tr>
+                        <td colSpan={9} className="p-0">
+                          <div className="bg-purple-50 p-4 border-t">
+                            <h4 className="font-medium mb-3">Entidades Asociadas</h4>
+                            {doc.entidadDocumentacion && doc.entidadDocumentacion.length > 0 ? (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-purple-200">
+                                      <th className="text-left py-2">Entidad</th>
+                                      <th className="text-left py-2">CUIT</th>
+                                      <th className="text-left py-2">Es Inhabilitante</th>
+                                      <th className="text-left py-2">Enviar por Mail</th>
+                                      <th className="text-left py-2">Fecha Emisión</th>
+                                      <th className="text-left py-2">Fecha Tramitación</th>
+                                      <th className="text-left py-2">Fecha Vencimiento</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {doc.entidadDocumentacion.map((entDoc) => (
+                                      <tr key={entDoc.id} className="border-b border-purple-100">
+                                        <td className="py-2 font-medium">
+                                          {entDoc.entidad?.razonSocial || '-'}
+                                        </td>
+                                        <td className="py-2">
+                                          {entDoc.entidad?.cuit || '-'}
+                                        </td>
+                                        <td className="py-2">
+                                          <span className={`status-badge ${entDoc.esInhabilitante ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                            {entDoc.esInhabilitante ? 'Sí' : 'No'}
+                                          </span>
+                                        </td>
+                                        <td className="py-2">
+                                          <span className={`status-badge ${entDoc.enviarPorMail ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                                            {entDoc.enviarPorMail ? 'Sí' : 'No'}
+                                          </span>
+                                        </td>
+                                        <td className="py-2">{formatDate(entDoc.fechaEmision)}</td>
+                                        <td className="py-2">{formatDate(entDoc.fechaTramitacion)}</td>
+                                        <td className="py-2">{formatDate(entDoc.fechaVencimiento)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500 text-sm">No hay entidades asociadas</p>
                             )}
                           </div>
                         </td>

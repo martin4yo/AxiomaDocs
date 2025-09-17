@@ -10,6 +10,8 @@ import EntidadRecurso from './EntidadRecurso';
 import Workflow from './Workflow';
 import Intercambio from './Intercambio';
 import EstadoDocumentoLog from './EstadoDocumentoLog';
+// Importar DocumentoArchivo después de las tablas que referencia
+import DocumentoArchivo from './DocumentoArchivo';
 
 // Definir asociaciones
 
@@ -60,6 +62,7 @@ Documentacion.belongsToMany(Recurso, {
   as: 'recursos'
 });
 Documentacion.hasMany(RecursoDocumentacion, { foreignKey: 'documentacionId', as: 'recursoDocumentacion' });
+Documentacion.hasMany(EntidadDocumentacion, { foreignKey: 'documentacionId', as: 'entidadDocumentacion' });
 Documentacion.belongsToMany(Entidad, {
   through: EntidadDocumentacion,
   foreignKey: 'documentacionId',
@@ -130,6 +133,18 @@ Usuario.hasMany(Intercambio, { foreignKey: 'modificadoPor', as: 'intercambiosMod
 Entidad.hasMany(Intercambio, { foreignKey: 'entidadOrigenId', as: 'intercambiosOrigen' });
 Entidad.hasMany(Intercambio, { foreignKey: 'entidadDestinoId', as: 'intercambiosDestino' });
 
+// DocumentoArchivo associations
+DocumentoArchivo.belongsTo(Usuario, { foreignKey: 'creadoPor', as: 'creador' });
+DocumentoArchivo.belongsTo(Documentacion, { foreignKey: 'documentacionId', as: 'documentacion' });
+DocumentoArchivo.belongsTo(RecursoDocumentacion, { foreignKey: 'recursoDocumentacionId', as: 'recursoDocumentacion' });
+DocumentoArchivo.belongsTo(EntidadDocumentacion, { foreignKey: 'entidadDocumentacionId', as: 'entidadDocumentacion' });
+
+// Reverse associations for DocumentoArchivo
+Usuario.hasMany(DocumentoArchivo, { foreignKey: 'creadoPor', as: 'documentosCreados' });
+Documentacion.hasMany(DocumentoArchivo, { foreignKey: 'documentacionId', as: 'documentoArchivos' });
+RecursoDocumentacion.hasMany(DocumentoArchivo, { foreignKey: 'recursoDocumentacionId', as: 'documentoArchivos' });
+EntidadDocumentacion.hasMany(DocumentoArchivo, { foreignKey: 'entidadDocumentacionId', as: 'documentoArchivos' });
+
 // EstadoDocumentoLog associations
 EstadoDocumentoLog.belongsTo(Usuario, { foreignKey: 'usuarioId', as: 'usuario' });
 EstadoDocumentoLog.belongsTo(Documentacion, { foreignKey: 'documentacionId', as: 'documentacion' });
@@ -159,6 +174,7 @@ export {
   Workflow,
   Intercambio,
   EstadoDocumentoLog,
+  DocumentoArchivo,
 };
 
 export const initializeDatabase = async () => {

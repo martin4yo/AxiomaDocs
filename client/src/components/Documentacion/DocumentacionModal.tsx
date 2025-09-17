@@ -120,38 +120,28 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
 
   const calculateVencimiento = () => {
     if (esUniversal && fechaEmision && diasVigencia) {
-      const emision = new Date(fechaEmision);
+      // Crear fecha correctamente considerando timezone
+      const emision = new Date(fechaEmision + 'T00:00:00');
       emision.setDate(emision.getDate() + Number(diasVigencia));
       return emision.toLocaleDateString('es-ES');
     }
     return '';
   };
 
-  // Actualizar fecha de vencimiento automáticamente cuando cambia fecha de emisión o días de vigencia
-  useEffect(() => {
-    if (esUniversal && fechaEmision && diasVigencia) {
-      const emision = new Date(fechaEmision);
-      emision.setDate(emision.getDate() + Number(diasVigencia));
-      const fechaCalculada = emision.toISOString().split('T')[0];
-      setValue('fechaVencimiento', fechaCalculada);
-    }
-  }, [esUniversal, fechaEmision, diasVigencia, setValue]);
-
-  // Establecer fecha de vencimiento por defecto cuando se cambia a documento universal
+  // Solo sugerir fecha de vencimiento cuando no hay una fecha establecida
+  // o cuando se marca el checkbox de universal por primera vez
   useEffect(() => {
     if (esUniversal && !fechaVencimiento && fechaEmision && diasVigencia) {
-      const emision = new Date(fechaEmision);
+      // Crear fecha correctamente considerando timezone
+      const emision = new Date(fechaEmision + 'T00:00:00');
       emision.setDate(emision.getDate() + Number(diasVigencia));
-      const fechaCalculada = emision.toISOString().split('T')[0];
-      setValue('fechaVencimiento', fechaCalculada);
-    } else if (esUniversal && !fechaVencimiento && !fechaEmision && diasVigencia) {
-      // Si no hay fecha de emisión, usar fecha actual como base
-      const hoy = new Date();
-      hoy.setDate(hoy.getDate() + Number(diasVigencia));
-      const fechaCalculada = hoy.toISOString().split('T')[0];
+      const year = emision.getFullYear();
+      const month = String(emision.getMonth() + 1).padStart(2, '0');
+      const day = String(emision.getDate()).padStart(2, '0');
+      const fechaCalculada = `${year}-${month}-${day}`;
       setValue('fechaVencimiento', fechaCalculada);
     }
-  }, [esUniversal, fechaVencimiento, fechaEmision, diasVigencia, setValue]);
+  }, [esUniversal]); // Solo ejecutar cuando cambia esUniversal
 
   // Obtener fecha mínima (día actual + 1)
   const getMinDate = () => {
@@ -412,13 +402,28 @@ const DocumentacionModal: React.FC<DocumentacionModalProps> = ({
                 {errors.fechaVencimiento && (
                   <p className="mt-1 text-sm text-red-600">{errors.fechaVencimiento.message}</p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Fecha de vencimiento del documento (editable)
-                </p>
-                {fechaEmision && diasVigencia && !fechaVencimiento && (
-                  <p className="mt-1 text-xs text-blue-600">
-                    Sugerencia calculada: {calculateVencimiento()}
-                  </p>
+                {fechaEmision && diasVigencia && (
+                  <div className="mt-2 flex items-center space-x-2">
+                    <p className="text-xs text-gray-600">
+                      Sugerencia calculada: <span className="font-semibold">{calculateVencimiento()}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (fechaEmision && diasVigencia) {
+                          const emision = new Date(fechaEmision + 'T00:00:00');
+                          emision.setDate(emision.getDate() + Number(diasVigencia));
+                          const year = emision.getFullYear();
+                          const month = String(emision.getMonth() + 1).padStart(2, '0');
+                          const day = String(emision.getDate()).padStart(2, '0');
+                          setValue('fechaVencimiento', `${year}-${month}-${day}`);
+                        }
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Aplicar sugerencia
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

@@ -31,6 +31,7 @@ export interface Recurso {
   fechaAlta: string;
   fechaBaja?: string;
   recursoDocumentacion?: RecursoDocumentacion[];
+  entidadRecurso?: EntidadRecurso[];
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +67,7 @@ export interface Entidad {
   urlPlataformaDocumentacion?: string;
   entidadDocumentacion?: EntidadDocumentacion[];
   entidadRecurso?: EntidadRecurso[];
+  estadoCritico?: Estado;
   createdAt: string;
   updatedAt: string;
 }
@@ -134,4 +136,25 @@ export interface AuthResponse {
   token: string;
   user: Usuario;
   message: string;
+}
+
+export interface DocumentoArchivo {
+  id: number;
+  filename: string;
+  storedFilename: string;
+  mimeType: string;
+  size: number;
+  descripcion?: string;
+  version: number;
+  documentacionId?: number;
+  recursoDocumentacionId?: number;
+  entidadDocumentacionId?: number;
+  creadoPor: number;
+  createdAt: string;
+  updatedAt: string;
+  creador?: {
+    nombre: string;
+    apellido: string;
+    username: string;
+  };
 }
