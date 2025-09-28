@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from '../components/Common/Logo';
+import { ForgotPassword } from '../components/Auth/ForgotPassword';
 
 interface LoginForm {
   username: string;
@@ -16,6 +17,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const {
     register,
@@ -25,6 +27,10 @@ const Login: React.FC = () => {
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
+  }
+
+  if (showForgotPassword) {
+    return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
   }
 
   const onSubmit = async (data: LoginForm) => {
@@ -110,14 +116,26 @@ const Login: React.FC = () => {
             </button>
           </div>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => window.location.href = '/register'}
-              className="text-sm text-primary-600 hover:text-primary-500"
-            >
-              ¿Primera vez? Registrarse aquí
-            </button>
+          <div className="flex flex-col space-y-2">
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-primary-600 hover:text-primary-500"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => window.location.href = '/register'}
+                className="text-sm text-primary-600 hover:text-primary-500"
+              >
+                ¿Primera vez? Registrarse aquí
+              </button>
+            </div>
           </div>
         </form>
       </div>

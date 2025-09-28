@@ -16,6 +16,7 @@ import Usuarios from './pages/Usuarios';
 import Intercambios from './pages/Intercambios';
 import Workflows from './pages/Workflows';
 import Procesos from './pages/Procesos';
+import { ResetPassword } from './components/Auth/ResetPassword';
 // Temporarily disabled - compilation issues
 // import GestionDocumentos from './pages/GestionDocumentos';
 // import Gestion from './pages/Gestion';
@@ -50,6 +51,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/*"
         element={

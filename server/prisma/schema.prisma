@@ -52,6 +52,9 @@ model Usuario {
   documentoArchivosUpdated    DocumentoArchivo[]       @relation("DocumentoArchivoUpdatedBy")
   estadoDocumentoLogsUpdated  EstadoDocumentoLog[]     @relation("EstadoDocumentoLogUpdatedBy")
 
+  // Password recovery tokens
+  passwordResetTokens         PasswordResetToken[]
+
   @@map("usuarios")
 }
 
@@ -394,4 +397,19 @@ model EstadoDocumentoLog {
   updatedByUser     Usuario?     @relation("EstadoDocumentoLogUpdatedBy", fields: [updatedBy], references: [id])
 
   @@map("estado_documento_logs")
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(255)
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user Usuario @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
