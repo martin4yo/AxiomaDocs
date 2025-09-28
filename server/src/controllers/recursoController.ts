@@ -1,55 +1,50 @@
 import { Response } from 'express';
-import { Op } from 'sequelize';
-import { Recurso, RecursoDocumentacion, Documentacion, Estado, EntidadRecurso, Entidad } from '../models';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
-import { isDocumentoUniversal, getFechasForAsignacion, parseFechaLocal } from '../utils/documentHelpers';
 
 export const getRecursos = async (req: AuthRequest, res: Response) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    const whereClause = search ? {
-      [Op.or]: [
-        { codigo: { [Op.like]: `%${search}%` } },
-        { nombre: { [Op.like]: `%${search}%` } },
-        { apellido: { [Op.like]: `%${search}%` } },
-        { cuil: { [Op.like]: `%${search}%` } },
+    // Build search filter
+    const searchFilter = search ? {
+      OR: [
+        { nombre: { contains: search.toString(), mode: 'insensitive' as const } },
+        { apellido: { contains: search.toString(), mode: 'insensitive' as const } },
+        { dni: { contains: search.toString(), mode: 'insensitive' as const } },
+        { email: { contains: search.toString(), mode: 'insensitive' as const } },
       ]
     } : {};
 
-    const { rows: recursos, count } = await Recurso.findAndCountAll({
-      where: whereClause,
-      order: [['apellido', 'ASC'], ['nombre', 'ASC']],
-      limit: Number(limit),
-      offset,
-      include: [
-        {
-          model: RecursoDocumentacion,
-          as: 'recursoDocumentacion',
-          include: [
-            {
-              model: Documentacion,
-              as: 'documentacion',
-            },
-            {
-              model: Estado,
-              as: 'estado',
+    const [recursos, count] = await Promise.all([
+      prisma.recurso.findMany({
+        where: searchFilter,
+        orderBy: [
+          { apellido: 'asc' },
+          { nombre: 'asc' }
+        ],
+        take: Number(limit),
+        skip: offset,
+        include: {
+          estado: true,
+          recursoDocumentacion: {
+            include: {
+              documentacion: true,
+              estado: true
             }
-          ]
-        },
-        {
-          model: EntidadRecurso,
-          as: 'entidadRecurso',
-          include: [
-            {
-              model: Entidad,
-              as: 'entidad',
+          },
+          entidadRecurso: {
+            include: {
+              entidad: true
             }
-          ]
+          }
         }
-      ]
-    });
+      }),
+      prisma.recurso.count({
+        where: searchFilter
+      })
+    ]);
 
     res.json({
       recursos,
@@ -69,33 +64,22 @@ export const getRecursos = async (req: AuthRequest, res: Response) => {
 export const getRecurso = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const recurso = await Recurso.findByPk(id, {
-      include: [
-        {
-          model: RecursoDocumentacion,
-          as: 'recursoDocumentacion',
-          include: [
-            {
-              model: Documentacion,
-              as: 'documentacion',
-            },
-            {
-              model: Estado,
-              as: 'estado',
-            }
-          ]
+    const recurso = await prisma.recurso.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        estado: true,
+        recursoDocumentacion: {
+          include: {
+            documentacion: true,
+            estado: true
+          }
         },
-        {
-          model: EntidadRecurso,
-          as: 'entidadRecurso',
-          include: [
-            {
-              model: Entidad,
-              as: 'entidad',
-            }
-          ]
+        entidadRecurso: {
+          include: {
+            entidad: true
+          }
         }
-      ]
+      }
     });
 
     if (!recurso) {
@@ -111,25 +95,58 @@ export const getRecurso = async (req: AuthRequest, res: Response) => {
 
 export const createRecurso = async (req: AuthRequest, res: Response) => {
   try {
-    const { codigo, apellido, nombre, telefono, cuil, direccion, localidad, fechaAlta } = req.body;
+    const {
+      nombre,
+      apellido,
+      dni,
+      email,
+      telefono,
+      direccion,
+      fechaNacimiento,
+      fechaIngreso,
+      observaciones,
+      estadoId
+    } = req.body;
     const userId = req.user!.id;
 
-    // Validar fecha de alta - usar fecha actual si no se proporciona o es inválida
-    const fechaAltaValid = fechaAlta && fechaAlta !== '' && fechaAlta !== 'Invalid date' && !isNaN(Date.parse(fechaAlta)) 
-      ? parseFechaLocal(fechaAlta) 
-      : new Date();
+    // Verificar que el estado existe
+    const estado = await prisma.estado.findUnique({
+      where: { id: parseInt(estadoId) }
+    });
 
-    const recurso = await Recurso.create({
-      codigo,
-      apellido,
-      nombre,
-      telefono,
-      cuil,
-      direccion,
-      localidad,
-      fechaAlta: fechaAltaValid,
-      creadoPor: userId,
-      modificadoPor: userId,
+    if (!estado) {
+      return res.status(400).json({ message: 'Estado no válido' });
+    }
+
+    // Verificar DNI único si se proporciona
+    if (dni) {
+      const existingRecurso = await prisma.recurso.findUnique({
+        where: { dni }
+      });
+
+      if (existingRecurso) {
+        return res.status(400).json({ message: 'Ya existe un recurso con ese DNI' });
+      }
+    }
+
+    const recurso = await prisma.recurso.create({
+      data: {
+        nombre,
+        apellido,
+        dni,
+        email,
+        telefono,
+        direccion,
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
+        fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : null,
+        observaciones,
+        estadoId: parseInt(estadoId),
+        createdBy: userId,
+        updatedBy: userId,
+      },
+      include: {
+        estado: true
+      }
     });
 
     res.status(201).json(recurso);
@@ -142,58 +159,76 @@ export const createRecurso = async (req: AuthRequest, res: Response) => {
 export const updateRecurso = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { codigo, apellido, nombre, telefono, cuil, direccion, localidad, fechaAlta, fechaBaja } = req.body;
+    const {
+      nombre,
+      apellido,
+      dni,
+      email,
+      telefono,
+      direccion,
+      fechaNacimiento,
+      fechaIngreso,
+      fechaBaja,
+      observaciones,
+      estadoId,
+      activo
+    } = req.body;
     const userId = req.user!.id;
 
-    const recurso = await Recurso.findByPk(id);
+    // Verificar que el recurso existe
+    const recursoExistente = await prisma.recurso.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!recurso) {
+    if (!recursoExistente) {
       return res.status(404).json({ message: 'Recurso no encontrado' });
     }
 
-    // Validar fechas - manejar fechas inválidas y valores especiales
-    let fechaAltaValid: Date | null | undefined;
-    if (fechaAlta === null || fechaAlta === '' || fechaAlta === undefined) {
-      fechaAltaValid = undefined; // No actualizar si no se envía o está vacío
-    } else if (fechaAlta === 'Invalid date' || isNaN(Date.parse(fechaAlta))) {
-      fechaAltaValid = undefined; // No actualizar si es inválida
-    } else {
-      fechaAltaValid = parseFechaLocal(fechaAlta);
-    }
-    
-    let fechaBajaValid: Date | null | undefined;
-    if (fechaBaja === null || fechaBaja === '') {
-      fechaBajaValid = null; // Explícitamente limpiar la fecha
-    } else if (fechaBaja === undefined || fechaBaja === 'Invalid date' || isNaN(Date.parse(fechaBaja))) {
-      fechaBajaValid = undefined; // No actualizar si es inválida o no se envía
-    } else {
-      fechaBajaValid = parseFechaLocal(fechaBaja);
+    // Verificar DNI único si se cambia
+    if (dni && dni !== recursoExistente.dni) {
+      const existingRecurso = await prisma.recurso.findUnique({
+        where: { dni }
+      });
+
+      if (existingRecurso) {
+        return res.status(400).json({ message: 'Ya existe un recurso con ese DNI' });
+      }
     }
 
-    const updateData: any = {
-      codigo,
-      apellido,
-      nombre,
-      telefono,
-      cuil,
-      direccion,
-      localidad,
-      modificadoPor: userId,
-    };
+    // Verificar que el estado existe si se proporciona
+    if (estadoId) {
+      const estado = await prisma.estado.findUnique({
+        where: { id: parseInt(estadoId) }
+      });
 
-    // Solo incluir fechaAlta si se debe actualizar
-    if (fechaAltaValid !== undefined) {
-      updateData.fechaAlta = fechaAltaValid;
+      if (!estado) {
+        return res.status(400).json({ message: 'Estado no válido' });
+      }
     }
 
-    // Solo incluir fechaBaja si se debe actualizar (incluye null para limpiar)
-    if (fechaBajaValid !== undefined) {
-      updateData.fechaBaja = fechaBajaValid;
-    }
+    const recursoActualizado = await prisma.recurso.update({
+      where: { id: parseInt(id) },
+      data: {
+        nombre,
+        apellido,
+        dni,
+        email,
+        telefono,
+        direccion,
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : null,
+        fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : null,
+        fechaBaja: fechaBaja ? new Date(fechaBaja) : null,
+        observaciones,
+        estadoId: estadoId ? parseInt(estadoId) : undefined,
+        activo: activo !== undefined ? activo : undefined,
+        updatedBy: userId,
+      },
+      include: {
+        estado: true
+      }
+    });
 
-    await recurso.update(updateData);
-
-    res.json(recurso);
+    res.json(recursoActualizado);
   } catch (error) {
     console.error('Error actualizando recurso:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
@@ -204,13 +239,18 @@ export const deleteRecurso = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const recurso = await Recurso.findByPk(id);
+    const recurso = await prisma.recurso.findUnique({
+      where: { id: parseInt(id) }
+    });
 
     if (!recurso) {
       return res.status(404).json({ message: 'Recurso no encontrado' });
     }
 
-    await recurso.destroy();
+    await prisma.recurso.delete({
+      where: { id: parseInt(id) }
+    });
+
     res.json({ message: 'Recurso eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando recurso:', error);
@@ -218,158 +258,171 @@ export const deleteRecurso = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const addDocumentToRecurso = async (req: AuthRequest, res: Response) => {
+// Documentación de recursos
+export const getRecursoDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { documentacionId, fechaEmision, fechaTramitacion, estadoId } = req.body;
+
+    const documentos = await prisma.recursoDocumentacion.findMany({
+      where: { recursoId: parseInt(id) },
+      include: {
+        documentacion: true,
+        estado: true,
+        recurso: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true
+          }
+        }
+      },
+      orderBy: {
+        documentacion: {
+          nombre: 'asc'
+        }
+      }
+    });
+
+    res.json(documentos);
+  } catch (error) {
+    console.error('Error obteniendo documentación del recurso:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+export const assignDocumentacionToRecurso = async (req: AuthRequest, res: Response) => {
+  try {
+    const { recursoId, documentacionId } = req.params;
+    const { fechaEmision, fechaTramitacion, fechaVencimiento, observaciones, estadoId } = req.body;
     const userId = req.user!.id;
 
-    // Verificar que el recurso no esté dado de baja
-    const recurso = await Recurso.findByPk(id);
+    // Verificar que el recurso existe
+    const recurso = await prisma.recurso.findUnique({
+      where: { id: parseInt(recursoId) }
+    });
+
     if (!recurso) {
       return res.status(404).json({ message: 'Recurso no encontrado' });
     }
-    
-    if (recurso.fechaBaja) {
-      return res.status(400).json({ message: 'No se pueden asignar documentos a recursos dados de baja' });
-    }
 
-    // Obtener la documentación para validar si es universal
-    const documentacion = await Documentacion.findByPk(documentacionId);
+    // Verificar que la documentación existe
+    const documentacion = await prisma.documentacion.findUnique({
+      where: { id: parseInt(documentacionId) }
+    });
+
     if (!documentacion) {
       return res.status(404).json({ message: 'Documentación no encontrada' });
     }
 
-    // Verificar si ya existe la asociación
-    const existingAssociation = await RecursoDocumentacion.findOne({
+    // Verificar si ya existe la asignación
+    const existingAssignment = await prisma.recursoDocumentacion.findUnique({
       where: {
-        recursoId: Number(id),
-        documentacionId: documentacionId
+        recursoId_documentacionId: {
+          recursoId: parseInt(recursoId),
+          documentacionId: parseInt(documentacionId)
+        }
       }
     });
 
-    if (existingAssociation) {
-      return res.status(400).json({ 
-        message: 'Este documento ya está asignado al recurso. Use la opción de editar para modificarlo.' 
-      });
+    if (existingAssignment) {
+      return res.status(400).json({ message: 'La documentación ya está asignada a este recurso' });
     }
 
-    // Determinar qué fechas usar (universales o específicas)
-    const fechasParaAsignacion = getFechasForAsignacion(documentacion, {
-      fechaEmision: fechaEmision ? parseFechaLocal(fechaEmision) : undefined,
-      fechaTramitacion: fechaTramitacion ? parseFechaLocal(fechaTramitacion) : undefined
-    });
-
-    const recursoDoc = await RecursoDocumentacion.create({
-      recursoId: Number(id),
-      documentacionId,
-      fechaEmision: fechasParaAsignacion.fechaEmision || undefined,
-      fechaTramitacion: fechasParaAsignacion.fechaTramitacion || undefined,
-      fechaVencimiento: fechasParaAsignacion.fechaVencimiento || undefined,
-      estadoId,
-      creadoPor: userId,
-      modificadoPor: userId,
-    });
-
-    const result = await RecursoDocumentacion.findByPk(recursoDoc.id, {
-      include: [
-        {
-          model: Documentacion,
-          as: 'documentacion',
-        },
-        {
-          model: Estado,
-          as: 'estado',
+    const asignacion = await prisma.recursoDocumentacion.create({
+      data: {
+        recursoId: parseInt(recursoId),
+        documentacionId: parseInt(documentacionId),
+        fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : null,
+        fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+        observaciones,
+        estadoId: parseInt(estadoId),
+        createdBy: userId,
+        updatedBy: userId,
+      },
+      include: {
+        documentacion: true,
+        estado: true,
+        recurso: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true
+          }
         }
-      ]
+      }
     });
 
-    res.status(201).json(result);
+    res.status(201).json(asignacion);
   } catch (error) {
-    console.error('Error agregando documento al recurso:', error);
+    console.error('Error asignando documentación:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
 export const updateRecursoDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
-    const { recursoDocId } = req.params;
-    const { fechaEmision, fechaTramitacion, fechaVencimiento, estadoId } = req.body;
+    const { id } = req.params;
+    const { fechaEmision, fechaTramitacion, fechaVencimiento, observaciones, estadoId } = req.body;
     const userId = req.user!.id;
 
-    const recursoDoc = await RecursoDocumentacion.findByPk(recursoDocId, {
-      include: [
-        {
-          model: Documentacion,
-          as: 'documentacion',
-        }
-      ]
+    const asignacion = await prisma.recursoDocumentacion.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    if (!recursoDoc) {
-      return res.status(404).json({ message: 'Documento del recurso no encontrado' });
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación de documentación no encontrada' });
     }
 
-    // Verificar si el documento es universal (no se pueden editar fechas)
-    const esUniversal = isDocumentoUniversal(recursoDoc.documentacion!);
-    
-    if (esUniversal) {
-      // Si es universal, solo permitir cambiar el estado
-      await recursoDoc.update({
-        estadoId,
-        modificadoPor: userId,
-      });
-    } else {
-      // Si no es universal, permitir editar fechas
-      const fechasParaAsignacion = getFechasForAsignacion(recursoDoc.documentacion!, {
-        fechaEmision: fechaEmision ? new Date(fechaEmision) : undefined,
-        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : undefined,
-        fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : undefined
-      });
-
-      await recursoDoc.update({
-        fechaEmision: fechasParaAsignacion.fechaEmision || undefined,
-        fechaTramitacion: fechasParaAsignacion.fechaTramitacion || undefined,
-        fechaVencimiento: fechasParaAsignacion.fechaVencimiento || undefined,
-        estadoId,
-        modificadoPor: userId,
-      });
-    }
-
-    const result = await RecursoDocumentacion.findByPk(recursoDocId, {
-      include: [
-        {
-          model: Documentacion,
-          as: 'documentacion',
-        },
-        {
-          model: Estado,
-          as: 'estado',
+    const asignacionActualizada = await prisma.recursoDocumentacion.update({
+      where: { id: parseInt(id) },
+      data: {
+        fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : null,
+        fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+        observaciones,
+        estadoId: estadoId ? parseInt(estadoId) : undefined,
+        updatedBy: userId,
+      },
+      include: {
+        documentacion: true,
+        estado: true,
+        recurso: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true
+          }
         }
-      ]
+      }
     });
 
-    res.json(result);
+    res.json(asignacionActualizada);
   } catch (error) {
-    console.error('Error actualizando documento del recurso:', error);
+    console.error('Error actualizando documentación del recurso:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-export const removeDocumentFromRecurso = async (req: AuthRequest, res: Response) => {
+export const deleteRecursoDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
-    const { recursoDocId } = req.params;
+    const { id } = req.params;
 
-    const recursoDoc = await RecursoDocumentacion.findByPk(recursoDocId);
+    const asignacion = await prisma.recursoDocumentacion.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!recursoDoc) {
-      return res.status(404).json({ message: 'Documento del recurso no encontrado' });
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación de documentación no encontrada' });
     }
 
-    await recursoDoc.destroy();
-    res.json({ message: 'Documento removido del recurso correctamente' });
+    await prisma.recursoDocumentacion.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ message: 'Asignación de documentación eliminada correctamente' });
   } catch (error) {
-    console.error('Error removiendo documento del recurso:', error);
+    console.error('Error eliminando documentación del recurso:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };

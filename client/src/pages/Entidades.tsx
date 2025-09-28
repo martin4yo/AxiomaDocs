@@ -105,6 +105,7 @@ const Entidades: React.FC = () => {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('entidades');
+        queryClient.invalidateQueries(['gestion-documentos']);
         setIsDocumentacionModalOpen(false);
         setEditingDocumentacion(null);
         toast.success('Documentación actualizada correctamente');
@@ -309,7 +310,7 @@ const Entidades: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-8 mt-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <Building2 className="h-8 w-8 mr-3 text-purple-600" />
           Entidades
@@ -321,11 +322,11 @@ const Entidades: React.FC = () => {
               filename: `entidades_${new Date().toISOString().split('T')[0]}`,
               title: 'Listado de Entidades',
               columns: [
-                { key: 'razonSocial', label: 'Razón Social', width: 25 },
-                { key: 'cuit', label: 'CUIT', width: 15 },
-                { key: 'localidad', label: 'Localidad', width: 20 },
+                { key: 'nombre', label: 'Nombre', width: 25 },
+                { key: 'descripcion', label: 'Descripción', width: 15 },
+                { key: 'email', label: 'Email', width: 20 },
                 { key: 'telefono', label: 'Teléfono', width: 15 },
-                { key: 'urlPlataformaDocumentacion', label: 'URL Plataforma', width: 25 },
+                { key: 'url', label: 'URL', width: 25 },
                 { key: 'estadoCritico', label: 'Estado Crítico', width: 15 },
                 { key: 'totalRecursos', label: 'Total Recursos', width: 10 },
                 { key: 'fechaCreacion', label: 'Fecha Creación', width: 15 }
@@ -350,7 +351,7 @@ const Entidades: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Buscar por razón social o CUIT..."
+              placeholder="Buscar por nombre o descripción..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -369,11 +370,11 @@ const Entidades: React.FC = () => {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Razón Social</th>
-                  <th>CUIT</th>
-                  <th>Localidad</th>
+                  <th>Nombre</th>
+                  <th>Descripción</th>
+                  <th>Email</th>
                   <th>Teléfono</th>
-                  <th>URL Plataforma</th>
+                  <th>URL</th>
                   <th>Estado Crítico</th>
                   <th>Recursos</th>
                   <th className="w-56">Acciones</th>
@@ -383,19 +384,19 @@ const Entidades: React.FC = () => {
                 {entidadesData?.entidades.map((entidad) => (
                   <React.Fragment key={entidad.id}>
                     <tr>
-                      <td className="font-medium">{entidad.razonSocial}</td>
-                      <td className="min-w-28 whitespace-nowrap">{entidad.cuit}</td>
-                      <td>{entidad.localidad || '-'}</td>
+                      <td className="font-medium">{entidad.nombre}</td>
+                      <td className="min-w-28 whitespace-nowrap">{entidad.descripcion || '-'}</td>
+                      <td>{entidad.email || '-'}</td>
                       <td>{entidad.telefono || '-'}</td>
                       <td>
-                        {entidad.urlPlataformaDocumentacion ? (
-                          <a 
-                            href={entidad.urlPlataformaDocumentacion} 
-                            target="_blank" 
+                        {entidad.url ? (
+                          <a
+                            href={entidad.url}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary-600 hover:text-primary-800 truncate inline-block max-w-32"
                           >
-                            {entidad.urlPlataformaDocumentacion}
+                            {entidad.url}
                           </a>
                         ) : '-'}
                       </td>
@@ -498,14 +499,23 @@ const Entidades: React.FC = () => {
                                         <td className="py-2">{formatDateLocal(doc.fechaTramitacion)}</td>
                                         <td className="py-2">{formatDateLocal(doc.fechaVencimiento)}</td>
                                         <td className="py-2">
-                                          {doc.documentacion?.estado ? (
-                                            <span 
-                                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-                                              style={{ backgroundColor: doc.documentacion.estado.color + '20', color: doc.documentacion.estado.color }}
-                                            >
-                                              {doc.documentacion.estado.nombre}
-                                            </span>
-                                          ) : '-'}
+                                          {(() => {
+                                            // Usar estado específico de la asignación si existe, sino el del documento
+                                            const estadoAMostrar = doc.documentacion?.esUniversal
+                                              ? doc.documentacion.estado
+                                              : (doc.estado || doc.documentacion?.estado);
+
+                                            if (!estadoAMostrar) return '-';
+
+                                            return (
+                                              <span
+                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                                style={{ backgroundColor: estadoAMostrar.color + '20', color: estadoAMostrar.color }}
+                                              >
+                                                {estadoAMostrar.nombre}
+                                              </span>
+                                            );
+                                          })()}
                                         </td>
                                         <td className="py-2">
                                           <span className={`status-badge ${doc.esInhabilitante ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>

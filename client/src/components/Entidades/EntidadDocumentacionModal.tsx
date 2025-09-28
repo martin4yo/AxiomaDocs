@@ -85,7 +85,7 @@ const EntidadDocumentacionModal: React.FC<EntidadDocumentacionModalProps> = ({
           esInhabilitante: entidadDocumentacion.esInhabilitante,
           enviarPorMail: entidadDocumentacion.enviarPorMail,
           mailDestino: entidadDocumentacion.mailDestino || '',
-          // estadoId removed as it doesn't exist in EntidadDocumentacion
+          estadoId: entidadDocumentacion.estadoId || undefined,
           fechaEmision: entidadDocumentacion.fechaEmision ? formatDateForInput(entidadDocumentacion.fechaEmision) : '',
           fechaTramitacion: entidadDocumentacion.fechaTramitacion ? formatDateForInput(entidadDocumentacion.fechaTramitacion) : '',
           fechaVencimiento: entidadDocumentacion.fechaVencimiento ? formatDateForInput(entidadDocumentacion.fechaVencimiento) : '',

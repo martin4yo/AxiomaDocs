@@ -237,7 +237,7 @@ const DocumentacionPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-8 mt-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <FileText className="h-8 w-8 mr-3 text-emerald-600" />
           Documentación
@@ -303,7 +303,7 @@ const DocumentacionPage: React.FC = () => {
                   <th>Descripción</th>
                   <th>Días Vigencia</th>
                   <th>Días Anticipación</th>
-                  <th>Obligatorio</th>
+                  <th>Tipo</th>
                   <th>Universal</th>
                   <th>Fecha Vencimiento</th>
                   <th>Estado</th>
@@ -314,13 +314,13 @@ const DocumentacionPage: React.FC = () => {
                 {documentacionData?.documentacion.map((doc) => (
                   <React.Fragment key={doc.id}>
                     <tr>
-                      <td className="font-medium">{doc.codigo}</td>
+                      <td className="font-medium">{doc.codigo || `DOC${doc.id.toString().padStart(3, '0')}`}</td>
                       <td>{doc.descripcion}</td>
                       <td className="text-center">{doc.diasVigencia}</td>
                       <td className="text-center">{doc.diasAnticipacion}</td>
                       <td className="text-center">
-                        <span className={`status-badge ${doc.esObligatorio ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {doc.esObligatorio ? 'Sí' : 'No'}
+                        <span className="status-badge bg-gray-100 text-gray-800">
+                          N/A
                         </span>
                       </td>
                       <td className="text-center">

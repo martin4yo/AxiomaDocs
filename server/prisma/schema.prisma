@@ -1,0 +1,397 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique @db.VarChar(100)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  nombre    String   @db.VarChar(100)
+  apellido  String   @db.VarChar(100)
+  esAdmin   Boolean  @default(false) @map("es_admin")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations - created by user
+  estadosCreated              Estado[]                 @relation("EstadoCreatedBy")
+  documentacionCreated        Documentacion[]          @relation("DocumentacionCreatedBy")
+  recursosCreated             Recurso[]                @relation("RecursoCreatedBy")
+  entidadesCreated            Entidad[]                @relation("EntidadCreatedBy")
+  recursoDocumentacionCreated RecursoDocumentacion[]   @relation("RecursoDocumentacionCreatedBy")
+  entidadDocumentacionCreated EntidadDocumentacion[]   @relation("EntidadDocumentacionCreatedBy")
+  entidadRecursoCreated       EntidadRecurso[]         @relation("EntidadRecursoCreatedBy")
+  intercambiosCreated         Intercambio[]            @relation("IntercambioCreatedBy")
+  workflowsCreated            Workflow[]               @relation("WorkflowCreatedBy")
+  documentoEnviosCreated      DocumentoEnvio[]         @relation("DocumentoEnvioCreatedBy")
+  documentoEventosCreated     DocumentoEvento[]        @relation("DocumentoEventoCreatedBy")
+  documentoArchivosCreated    DocumentoArchivo[]       @relation("DocumentoArchivoCreatedBy")
+  estadoDocumentoLogsCreated  EstadoDocumentoLog[]     @relation("EstadoDocumentoLogCreatedBy")
+
+  // Relations - updated by user
+  estadosUpdated              Estado[]                 @relation("EstadoUpdatedBy")
+  documentacionUpdated        Documentacion[]          @relation("DocumentacionUpdatedBy")
+  recursosUpdated             Recurso[]                @relation("RecursoUpdatedBy")
+  entidadesUpdated            Entidad[]                @relation("EntidadUpdatedBy")
+  recursoDocumentacionUpdated RecursoDocumentacion[]   @relation("RecursoDocumentacionUpdatedBy")
+  entidadDocumentacionUpdated EntidadDocumentacion[]   @relation("EntidadDocumentacionUpdatedBy")
+  entidadRecursoUpdated       EntidadRecurso[]         @relation("EntidadRecursoUpdatedBy")
+  intercambiosUpdated         Intercambio[]            @relation("IntercambioUpdatedBy")
+  workflowsUpdated            Workflow[]               @relation("WorkflowUpdatedBy")
+  documentoEnviosUpdated      DocumentoEnvio[]         @relation("DocumentoEnvioUpdatedBy")
+  documentoEventosUpdated     DocumentoEvento[]        @relation("DocumentoEventoUpdatedBy")
+  documentoArchivosUpdated    DocumentoArchivo[]       @relation("DocumentoArchivoUpdatedBy")
+  estadoDocumentoLogsUpdated  EstadoDocumentoLog[]     @relation("EstadoDocumentoLogUpdatedBy")
+
+  @@map("usuarios")
+}
+
+model Estado {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @unique @db.VarChar(100)
+  descripcion String?  @db.Text
+  color       String   @default("#64748b") @db.VarChar(7)
+  nivel       Int      @default(1)
+  activo      Boolean  @default(true)
+  createdBy   Int      @map("created_by")
+  updatedBy   Int?     @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdByUser Usuario @relation("EstadoCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("EstadoUpdatedBy", fields: [updatedBy], references: [id])
+
+  // Related entities
+  recursos              Recurso[]
+  documentacion         Documentacion[]
+  entidades             Entidad[]
+  recursoDocumentacion  RecursoDocumentacion[]
+  entidadDocumentacion  EntidadDocumentacion[]
+  documentoEnvios       DocumentoEnvio[]
+  estadoDocumentoLogsAnterior EstadoDocumentoLog[] @relation("EstadoAnterior")
+  estadoDocumentoLogsNuevo    EstadoDocumentoLog[] @relation("EstadoNuevo")
+
+  @@map("estados")
+}
+
+model Documentacion {
+  id                    Int      @id @default(autoincrement())
+  codigo                String?  @unique @db.VarChar(50)
+  nombre                String   @db.VarChar(200)
+  descripcion           String?  @db.Text
+  diasVigencia          Int      @default(365) @map("dias_vigencia")
+  diasAnticipacion      Int      @default(30) @map("dias_anticipacion")
+  esUniversal           Boolean  @default(false) @map("es_universal")
+  fechaEmision          DateTime? @map("fecha_emision") @db.Date
+  fechaTramitacion      DateTime? @map("fecha_tramitacion") @db.Date
+  fechaVencimiento      DateTime? @map("fecha_vencimiento") @db.Date
+  estadoId              Int      @map("estado_id")
+  activo                Boolean  @default(true)
+  createdBy             Int      @map("created_by")
+  updatedBy             Int?     @map("updated_by")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  estado        Estado   @relation(fields: [estadoId], references: [id])
+  createdByUser Usuario  @relation("DocumentacionCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("DocumentacionUpdatedBy", fields: [updatedBy], references: [id])
+
+  // Related entities
+  recursoDocumentacion RecursoDocumentacion[]
+  entidadDocumentacion EntidadDocumentacion[]
+  documentoEnvios      DocumentoEnvio[]
+  documentoEventos     DocumentoEvento[]
+  documentoArchivos    DocumentoArchivo[]
+
+  @@map("documentacion")
+}
+
+model Recurso {
+  id                  Int       @id @default(autoincrement())
+  codigo              String?   @unique @db.VarChar(50)
+  nombre              String    @db.VarChar(100)
+  apellido            String    @db.VarChar(100)
+  dni                 String?   @unique @db.VarChar(20)
+  email               String?   @db.VarChar(255)
+  telefono            String?   @db.VarChar(50)
+  direccion           String?   @db.VarChar(255)
+  fechaNacimiento     DateTime? @map("fecha_nacimiento") @db.Date
+  fechaIngreso        DateTime? @map("fecha_ingreso") @db.Date
+  fechaBaja           DateTime? @map("fecha_baja") @db.Date
+  observaciones       String?   @db.Text
+  estadoId            Int       @map("estado_id")
+  activo              Boolean   @default(true)
+  createdBy           Int       @map("created_by")
+  updatedBy           Int?      @map("updated_by")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  estado        Estado   @relation(fields: [estadoId], references: [id])
+  createdByUser Usuario  @relation("RecursoCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("RecursoUpdatedBy", fields: [updatedBy], references: [id])
+
+  // Related entities
+  recursoDocumentacion RecursoDocumentacion[]
+  entidadRecurso       EntidadRecurso[]
+  documentoEnvios      DocumentoEnvio[]
+
+  @@map("recursos")
+}
+
+model Entidad {
+  id            Int       @id @default(autoincrement())
+  nombre        String    @db.VarChar(200)
+  descripcion   String?   @db.Text
+  url           String?   @db.VarChar(500)
+  contacto      String?   @db.VarChar(255)
+  email         String?   @db.VarChar(255)
+  telefono      String?   @db.VarChar(50)
+  direccion     String?   @db.VarChar(255)
+  fechaIngreso  DateTime? @map("fecha_ingreso") @db.Date
+  observaciones String?   @db.Text
+  estadoId      Int       @map("estado_id")
+  activo        Boolean   @default(true)
+  createdBy     Int       @map("created_by")
+  updatedBy     Int?      @map("updated_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  estado        Estado   @relation(fields: [estadoId], references: [id])
+  createdByUser Usuario  @relation("EntidadCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("EntidadUpdatedBy", fields: [updatedBy], references: [id])
+
+  // Related entities
+  entidadDocumentacion EntidadDocumentacion[]
+  entidadRecurso       EntidadRecurso[]
+  intercambiosOrigen   Intercambio[]          @relation("IntercambioOrigen")
+  intercambiosDestino  Intercambio[]          @relation("IntercambioDestino")
+  documentoEnvios      DocumentoEnvio[]
+
+  @@map("entidades")
+}
+
+model RecursoDocumentacion {
+  id               Int       @id @default(autoincrement())
+  recursoId        Int       @map("recurso_id")
+  documentacionId  Int       @map("documentacion_id")
+  fechaEmision     DateTime? @map("fecha_emision") @db.Date
+  fechaTramitacion DateTime? @map("fecha_tramitacion") @db.Date
+  fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
+  observaciones    String?   @db.Text
+  estadoId         Int       @map("estado_id")
+  activo           Boolean   @default(true)
+  createdBy        Int       @map("created_by")
+  updatedBy        Int?      @map("updated_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  recurso           Recurso       @relation(fields: [recursoId], references: [id], onDelete: Cascade)
+  documentacion     Documentacion @relation(fields: [documentacionId], references: [id], onDelete: Cascade)
+  estado            Estado        @relation(fields: [estadoId], references: [id])
+  createdByUser     Usuario       @relation("RecursoDocumentacionCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     Usuario?      @relation("RecursoDocumentacionUpdatedBy", fields: [updatedBy], references: [id])
+  documentoArchivos DocumentoArchivo[]
+
+  @@unique([recursoId, documentacionId])
+  @@map("recurso_documentacion")
+}
+
+model EntidadDocumentacion {
+  id               Int       @id @default(autoincrement())
+  entidadId        Int       @map("entidad_id")
+  documentacionId  Int       @map("documentacion_id")
+  esInhabilitante  Boolean   @default(false) @map("es_inhabilitante")
+  notificarEmail   Boolean   @default(false) @map("notificar_email")
+  fechaEmision     DateTime? @map("fecha_emision") @db.Date
+  fechaTramitacion DateTime? @map("fecha_tramitacion") @db.Date
+  fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
+  observaciones    String?   @db.Text
+  estadoId         Int       @map("estado_id")
+  activo           Boolean   @default(true)
+  createdBy        Int       @map("created_by")
+  updatedBy        Int?      @map("updated_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  entidad           Entidad       @relation(fields: [entidadId], references: [id], onDelete: Cascade)
+  documentacion     Documentacion @relation(fields: [documentacionId], references: [id], onDelete: Cascade)
+  estado            Estado        @relation(fields: [estadoId], references: [id])
+  createdByUser     Usuario       @relation("EntidadDocumentacionCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     Usuario?      @relation("EntidadDocumentacionUpdatedBy", fields: [updatedBy], references: [id])
+  documentoArchivos DocumentoArchivo[]
+
+  @@unique([entidadId, documentacionId])
+  @@map("entidad_documentacion")
+}
+
+model EntidadRecurso {
+  id            Int       @id @default(autoincrement())
+  entidadId     Int       @map("entidad_id")
+  recursoId     Int       @map("recurso_id")
+  fechaInicio   DateTime? @map("fecha_inicio") @db.Date
+  fechaFin      DateTime? @map("fecha_fin") @db.Date
+  observaciones String?   @db.Text
+  activo        Boolean   @default(true)
+  createdBy     Int       @map("created_by")
+  updatedBy     Int?      @map("updated_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  entidad       Entidad  @relation(fields: [entidadId], references: [id], onDelete: Cascade)
+  recurso       Recurso  @relation(fields: [recursoId], references: [id], onDelete: Cascade)
+  createdByUser Usuario  @relation("EntidadRecursoCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("EntidadRecursoUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@unique([entidadId, recursoId])
+  @@map("entidad_recurso")
+}
+
+model Intercambio {
+  id                Int       @id @default(autoincrement())
+  entidadOrigenId   Int       @map("entidad_origen_id")
+  entidadDestinoId  Int       @map("entidad_destino_id")
+  fechaIntercambio  DateTime  @map("fecha_intercambio") @db.Date
+  descripcion       String?   @db.Text
+  observaciones     String?   @db.Text
+  activo            Boolean   @default(true)
+  createdBy         Int       @map("created_by")
+  updatedBy         Int?      @map("updated_by")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  entidadOrigen Entidad  @relation("IntercambioOrigen", fields: [entidadOrigenId], references: [id])
+  entidadDestino Entidad @relation("IntercambioDestino", fields: [entidadDestinoId], references: [id])
+  createdByUser Usuario  @relation("IntercambioCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("IntercambioUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("intercambios")
+}
+
+model Workflow {
+  id          Int      @id @default(autoincrement())
+  nombre      String   @db.VarChar(200)
+  descripcion String?  @db.Text
+  activo      Boolean  @default(true)
+  createdBy   Int      @map("created_by")
+  updatedBy   Int?     @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdByUser Usuario @relation("WorkflowCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario? @relation("WorkflowUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("workflows")
+}
+
+model DocumentoEnvio {
+  id              Int       @id @default(autoincrement())
+  recursoId       Int       @map("recurso_id")
+  documentacionId Int       @map("documentacion_id")
+  entidadId       Int       @map("entidad_id")
+  fechaEnvio      DateTime  @map("fecha_envio") @db.Date
+  fechaRecepcion  DateTime? @map("fecha_recepcion") @db.Date
+  observaciones   String?   @db.Text
+  estadoId        Int       @map("estado_id")
+  activo          Boolean   @default(true)
+  createdBy       Int       @map("created_by")
+  updatedBy       Int?      @map("updated_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  recurso       Recurso       @relation(fields: [recursoId], references: [id])
+  documentacion Documentacion @relation(fields: [documentacionId], references: [id])
+  entidad       Entidad       @relation(fields: [entidadId], references: [id])
+  estado        Estado        @relation(fields: [estadoId], references: [id])
+  createdByUser Usuario       @relation("DocumentoEnvioCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario?      @relation("DocumentoEnvioUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("documento_envios")
+}
+
+model DocumentoEvento {
+  id              Int      @id @default(autoincrement())
+  documentacionId Int      @map("documentacion_id")
+  tipoEvento      String   @map("tipo_evento") @db.VarChar(100)
+  descripcion     String?  @db.Text
+  fechaEvento     DateTime @map("fecha_evento")
+  activo          Boolean  @default(true)
+  createdBy       Int      @map("created_by")
+  updatedBy       Int?     @map("updated_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  documentacion Documentacion @relation(fields: [documentacionId], references: [id])
+  createdByUser Usuario       @relation("DocumentoEventoCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser Usuario?      @relation("DocumentoEventoUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("documento_eventos")
+}
+
+model DocumentoArchivo {
+  id                     Int      @id @default(autoincrement())
+  documentacionId        Int?     @map("documentacion_id")
+  recursoDocumentacionId Int?     @map("recurso_documentacion_id")
+  entidadDocumentacionId Int?     @map("entidad_documentacion_id")
+  nombreArchivo          String   @map("nombre_archivo") @db.VarChar(255)
+  rutaArchivo            String   @map("ruta_archivo") @db.VarChar(500)
+  tipoMime               String   @map("tipo_mime") @db.VarChar(100)
+  tamano                 Int      @map("tamano")
+  descripcion            String?  @db.Text
+  version                Int      @default(1)
+  activo                 Boolean  @default(true)
+  createdBy              Int      @map("created_by")
+  updatedBy              Int?     @map("updated_by")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  documentacion        Documentacion?        @relation(fields: [documentacionId], references: [id])
+  recursoDocumentacion RecursoDocumentacion? @relation(fields: [recursoDocumentacionId], references: [id])
+  entidadDocumentacion EntidadDocumentacion? @relation(fields: [entidadDocumentacionId], references: [id])
+  createdByUser        Usuario               @relation("DocumentoArchivoCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser        Usuario?              @relation("DocumentoArchivoUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("documento_archivos")
+}
+
+model EstadoDocumentoLog {
+  id              Int      @id @default(autoincrement())
+  documentacionId Int      @map("documentacion_id")
+  estadoAnterior  Int?     @map("estado_anterior")
+  estadoNuevo     Int      @map("estado_nuevo")
+  fechaCambio     DateTime @map("fecha_cambio")
+  motivo          String?  @db.Text
+  activo          Boolean  @default(true)
+  createdBy       Int      @map("created_by")
+  updatedBy       Int?     @map("updated_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  estadoAnteriorRef Estado?      @relation("EstadoAnterior", fields: [estadoAnterior], references: [id])
+  estadoNuevoRef    Estado       @relation("EstadoNuevo", fields: [estadoNuevo], references: [id])
+  createdByUser     Usuario      @relation("EstadoDocumentoLogCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser     Usuario?     @relation("EstadoDocumentoLogUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("estado_documento_logs")
+}

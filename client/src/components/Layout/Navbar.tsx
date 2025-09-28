@@ -17,7 +17,7 @@ const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, isSidebarOpen }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center justify-start">
             <button
-              className="p-2 text-gray-600 rounded cursor-pointer lg:hidden hover:text-gray-900 hover:bg-gray-100"
+              className="p-2 text-gray-600 rounded cursor-pointer hover:text-gray-900 hover:bg-gray-100"
               onClick={onToggleSidebar}
             >
               {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}

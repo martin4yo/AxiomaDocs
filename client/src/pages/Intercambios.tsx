@@ -121,7 +121,7 @@ const Intercambios: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-6 mt-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-8 mt-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <ArrowRightLeft className="h-8 w-8 mr-3 text-blue-600" />

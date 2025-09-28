@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { Usuario } from '../models';
+import prisma from '../lib/prisma';
 import { generateToken } from '../middleware/auth';
 
 export const register = async (req: Request, res: Response) => {
@@ -8,7 +8,7 @@ export const register = async (req: Request, res: Response) => {
     const { username, email, password, nombre, apellido } = req.body;
 
     // Verificar si el usuario ya existe
-    const existingUser = await Usuario.findOne({
+    const existingUser = await prisma.usuario.findUnique({
       where: { username }
     });
 
@@ -17,7 +17,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Verificar si el email ya existe
-    const existingEmail = await Usuario.findOne({
+    const existingEmail = await prisma.usuario.findUnique({
       where: { email }
     });
 
@@ -28,14 +28,20 @@ export const register = async (req: Request, res: Response) => {
     // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Verificar si es el primer usuario (será admin)
+    const userCount = await prisma.usuario.count();
+
     // Crear usuario
-    const usuario = await Usuario.create({
-      username,
-      email,
-      password: hashedPassword,
-      nombre,
-      apellido,
-      activo: true,
+    const usuario = await prisma.usuario.create({
+      data: {
+        username,
+        email,
+        password: hashedPassword,
+        nombre,
+        apellido,
+        activo: true,
+        esAdmin: userCount === 0, // Primer usuario es admin
+      }
     });
 
     // Generar token
@@ -63,7 +69,7 @@ export const login = async (req: Request, res: Response) => {
     const { username, password } = req.body;
 
     // Buscar usuario
-    const usuario = await Usuario.findOne({
+    const usuario = await prisma.usuario.findUnique({
       where: { username }
     });
 
@@ -106,8 +112,18 @@ export const getProfile = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     
-    const usuario = await Usuario.findByPk(userId, {
-      attributes: { exclude: ['password'] }
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nombre: true,
+        apellido: true,
+        esAdmin: true,
+        activo: true,
+        createdAt: true
+      }
     });
 
     if (!usuario) {

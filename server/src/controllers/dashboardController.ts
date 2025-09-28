@@ -1,64 +1,59 @@
 import { Response } from 'express';
-import { Op } from 'sequelize';
-import sequelize from '../models/database';
-import {
-  Recurso,
-  Documentacion,
-  Entidad,
-  RecursoDocumentacion,
-  EntidadDocumentacion,
-  Estado
-} from '../models';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 
 export const getStats = async (req: AuthRequest, res: Response) => {
   try {
     // Total recursos
-    const totalRecursos = await Recurso.count();
+    const totalRecursos = await prisma.recurso.count();
 
     // Recursos activos (sin fecha de baja)
-    const recursosActivos = await Recurso.count({
-      where: sequelize.where(sequelize.col('fechaBaja'), 'IS', null)
+    const recursosActivos = await prisma.recurso.count({
+      where: {
+        fechaBaja: null
+      }
     });
 
     // Total documentación
-    const totalDocumentacion = await Documentacion.count();
+    const totalDocumentacion = await prisma.documentacion.count();
 
     // Total entidades
-    const totalEntidades = await Entidad.count();
+    const totalEntidades = await prisma.entidad.count();
 
     // Documentos por vencer (próximos 30 días) - RecursoDocumentacion + EntidadDocumentacion + Universal
     const fechaLimite = new Date();
     fechaLimite.setDate(fechaLimite.getDate() + 30);
 
-    const documentosPorVencerRecurso = await RecursoDocumentacion.count({
+    const documentosPorVencerRecurso = await prisma.recursoDocumentacion.count({
       where: {
         fechaVencimiento: {
-          [Op.between]: [new Date(), fechaLimite]
+          gte: new Date(),
+          lte: fechaLimite
         }
       }
     });
 
     // Documentos de entidades por vencer
     console.log('🔍 Ejecutando consulta EntidadDocumentacion por vencer...');
-    const documentosPorVencerEntidad = await EntidadDocumentacion.count({
-      where: sequelize.where(
-        sequelize.col('fechaVencimiento'),
-        {
-          [Op.between]: [new Date(), fechaLimite],
-          [Op.not]: null
+    const documentosPorVencerEntidad = await prisma.entidadDocumentacion.count({
+      where: {
+        fechaVencimiento: {
+          gte: new Date(),
+          lte: fechaLimite,
+          not: null
         }
-      )
+      }
     });
     console.log('✅ EntidadDocumentacion por vencer:', documentosPorVencerEntidad);
 
     // Documentos universales por vencer
     console.log('🔍 Ejecutando consulta Documentacion universal por vencer...');
-    const documentosPorVencerUniversal = await Documentacion.count({
+    const documentosPorVencerUniversal = await prisma.documentacion.count({
       where: {
         esUniversal: true,
         fechaVencimiento: {
-          [Op.between]: [new Date(), fechaLimite]
+          gte: new Date(),
+          lte: fechaLimite
         }
       }
     });
@@ -68,10 +63,10 @@ export const getStats = async (req: AuthRequest, res: Response) => {
 
     // Documentos vencidos (RecursoDocumentacion + EntidadDocumentacion + Universal)
     console.log('🔍 Ejecutando consulta RecursoDocumentacion vencidos...');
-    const documentosVencidosRecurso = await RecursoDocumentacion.count({
+    const documentosVencidosRecurso = await prisma.recursoDocumentacion.count({
       where: {
         fechaVencimiento: {
-          [Op.lt]: new Date()
+          lt: new Date()
         }
       }
     });
@@ -79,24 +74,23 @@ export const getStats = async (req: AuthRequest, res: Response) => {
 
     // Documentos vencidos de entidades
     console.log('🔍 Ejecutando consulta EntidadDocumentacion vencidos...');
-    const documentosVencidosEntidad = await EntidadDocumentacion.count({
-      where: sequelize.where(
-        sequelize.col('fechaVencimiento'),
-        {
-          [Op.lt]: new Date(),
-          [Op.not]: null
+    const documentosVencidosEntidad = await prisma.entidadDocumentacion.count({
+      where: {
+        fechaVencimiento: {
+          lt: new Date(),
+          not: null
         }
-      )
+      }
     });
     console.log('✅ EntidadDocumentacion vencidos:', documentosVencidosEntidad);
 
     // Documentos universales vencidos
     console.log('🔍 Ejecutando consulta Documentacion universal vencidos...');
-    const documentosVencidosUniversal = await Documentacion.count({
+    const documentosVencidosUniversal = await prisma.documentacion.count({
       where: {
         esUniversal: true,
         fechaVencimiento: {
-          [Op.lt]: new Date()
+          lt: new Date()
         }
       }
     });
@@ -137,75 +131,65 @@ export const getDocumentosPorVencer = async (req: AuthRequest, res: Response) =>
     fechaLimite.setDate(fechaLimite.getDate() + Number(dias));
 
     // Documentos de recursos por vencer
-    const documentosRecurso = await RecursoDocumentacion.findAll({
+    const documentosRecurso = await prisma.recursoDocumentacion.findMany({
       where: {
         fechaVencimiento: {
-          [Op.between]: [new Date(), fechaLimite]
+          gte: new Date(),
+          lte: fechaLimite
         }
       },
-      include: [
-        {
-          model: Recurso,
-          as: 'recurso',
-          attributes: ['id', 'codigo', 'apellido', 'nombre']
+      include: {
+        recurso: {
+          select: { id: true, apellido: true, nombre: true }
         },
-        {
-          model: Documentacion,
-          as: 'documentacion',
-          attributes: ['id', 'codigo', 'descripcion']
+        documentacion: {
+          select: { id: true, descripcion: true }
         },
-        {
-          model: Estado,
-          as: 'estado',
-          attributes: ['id', 'nombre', 'color']
+        estado: {
+          select: { id: true, nombre: true, color: true }
         }
-      ],
-      order: [['fechaVencimiento', 'ASC']],
-      limit: 15
+      },
+      orderBy: { fechaVencimiento: 'asc' },
+      take: 15
     });
 
     // Documentos de entidades por vencer
-    const documentosEntidad = await EntidadDocumentacion.findAll({
-      where: sequelize.where(
-        sequelize.col('fechaVencimiento'),
-        {
-          [Op.between]: [new Date(), fechaLimite],
-          [Op.not]: null
+    const documentosEntidad = await prisma.entidadDocumentacion.findMany({
+      where: {
+        fechaVencimiento: {
+          gte: new Date(),
+          lte: fechaLimite,
+          not: null
         }
-      ),
-      include: [
-        {
-          model: Entidad,
-          as: 'entidad',
-          attributes: ['id', 'codigo', 'nombre']
+      },
+      include: {
+        entidad: {
+          select: { id: true, nombre: true }
         },
-        {
-          model: Documentacion,
-          as: 'documentacion',
-          attributes: ['id', 'codigo', 'descripcion']
+        documentacion: {
+          select: { id: true, descripcion: true }
         }
-      ],
-      order: [['fechaVencimiento', 'ASC']],
-      limit: 10
+      },
+      orderBy: { fechaVencimiento: 'asc' },
+      take: 10
     });
 
     // Documentos universales por vencer
-    const documentosUniversal = await Documentacion.findAll({
+    const documentosUniversal = await prisma.documentacion.findMany({
       where: {
         esUniversal: true,
         fechaVencimiento: {
-          [Op.between]: [new Date(), fechaLimite]
+          gte: new Date(),
+          lte: fechaLimite
         }
       },
-      include: [
-        {
-          model: Estado,
-          as: 'estado',
-          attributes: ['id', 'nombre', 'color']
+      include: {
+        estado: {
+          select: { id: true, nombre: true, color: true }
         }
-      ],
-      order: [['fechaVencimiento', 'ASC']],
-      limit: 5
+      },
+      orderBy: { fechaVencimiento: 'asc' },
+      take: 5
     });
 
     // Formatear documentos de recursos
@@ -222,8 +206,8 @@ export const getDocumentosPorVencer = async (req: AuthRequest, res: Response) =>
     const documentosEntidadFormatted = documentosEntidad.map(doc => ({
       id: doc.id,
       fechaVencimiento: doc.fechaVencimiento,
-      recurso: { apellido: 'ENTIDAD', nombre: (doc as any).entidad?.nombre || 'Sin entidad' },
-      documentacion: (doc as any).documentacion,
+      recurso: { apellido: 'ENTIDAD', nombre: doc.entidad?.nombre || 'Sin entidad' },
+      documentacion: doc.documentacion,
       estado: { id: 0, nombre: 'ENTIDAD', color: '#f59e0b' }, // Color amarillo para entidades
       tipo: 'entidad'
     }));
@@ -232,9 +216,9 @@ export const getDocumentosPorVencer = async (req: AuthRequest, res: Response) =>
     const documentosUniversalFormatted = documentosUniversal.map(doc => ({
       id: doc.id,
       fechaVencimiento: doc.fechaVencimiento,
-      recurso: { apellido: 'UNIVERSAL', nombre: doc.codigo },
-      documentacion: { codigo: doc.codigo, descripcion: doc.descripcion },
-      estado: (doc as any).estado,
+      recurso: { apellido: 'UNIVERSAL', nombre: doc.nombre },
+      documentacion: { descripcion: doc.descripcion },
+      estado: doc.estado,
       tipo: 'universal'
     }));
 
@@ -271,75 +255,62 @@ export const getDocumentosVencidos = async (req: AuthRequest, res: Response) => 
     console.log('📊 Obteniendo documentos vencidos...');
 
     // Documentos de recursos vencidos
-    const documentosRecurso = await RecursoDocumentacion.findAll({
+    const documentosRecurso = await prisma.recursoDocumentacion.findMany({
       where: {
         fechaVencimiento: {
-          [Op.lt]: new Date()
+          lt: new Date()
         }
       },
-      include: [
-        {
-          model: Recurso,
-          as: 'recurso',
-          attributes: ['id', 'codigo', 'apellido', 'nombre']
+      include: {
+        recurso: {
+          select: { id: true, apellido: true, nombre: true }
         },
-        {
-          model: Documentacion,
-          as: 'documentacion',
-          attributes: ['id', 'codigo', 'descripcion']
+        documentacion: {
+          select: { id: true, descripcion: true }
         },
-        {
-          model: Estado,
-          as: 'estado',
-          attributes: ['id', 'nombre', 'color']
+        estado: {
+          select: { id: true, nombre: true, color: true }
         }
-      ],
-      order: [['fechaVencimiento', 'DESC']],
-      limit: 10
+      },
+      orderBy: { fechaVencimiento: 'desc' },
+      take: 10
     });
 
     // Documentos de entidades vencidos
-    const documentosEntidad = await EntidadDocumentacion.findAll({
-      where: sequelize.where(
-        sequelize.col('EntidadDocumentacion.fechaVencimiento'),
-        {
-          [Op.lt]: new Date(),
-          [Op.not]: null
+    const documentosEntidad = await prisma.entidadDocumentacion.findMany({
+      where: {
+        fechaVencimiento: {
+          lt: new Date(),
+          not: null
         }
-      ),
-      include: [
-        {
-          model: Entidad,
-          as: 'entidad',
-          attributes: ['id', 'razonSocial', 'cuit']
+      },
+      include: {
+        entidad: {
+          select: { id: true, nombre: true, contacto: true }
         },
-        {
-          model: Documentacion,
-          as: 'documentacion',
-          attributes: ['id', 'codigo', 'descripcion']
+        documentacion: {
+          select: { id: true, descripcion: true }
         }
-      ],
-      order: [['fechaVencimiento', 'DESC']],
-      limit: 10
+      },
+      orderBy: { fechaVencimiento: 'desc' },
+      take: 10
     });
 
     // Documentos universales vencidos
-    const documentosUniversal = await Documentacion.findAll({
+    const documentosUniversal = await prisma.documentacion.findMany({
       where: {
         esUniversal: true,
         fechaVencimiento: {
-          [Op.lt]: new Date()
+          lt: new Date()
         }
       },
-      include: [
-        {
-          model: Estado,
-          as: 'estado',
-          attributes: ['id', 'nombre', 'color']
+      include: {
+        estado: {
+          select: { id: true, nombre: true, color: true }
         }
-      ],
-      order: [['fechaVencimiento', 'DESC']],
-      limit: 5
+      },
+      orderBy: { fechaVencimiento: 'desc' },
+      take: 5
     });
 
     // Formatear documentos de recursos
@@ -356,8 +327,8 @@ export const getDocumentosVencidos = async (req: AuthRequest, res: Response) => 
     const documentosEntidadFormatted = documentosEntidad.map(doc => ({
       id: doc.id,
       fechaVencimiento: doc.fechaVencimiento,
-      recurso: { apellido: 'ENTIDAD', nombre: (doc as any).entidad?.razonSocial || 'Sin entidad' },
-      documentacion: (doc as any).documentacion,
+      recurso: { apellido: 'ENTIDAD', nombre: doc.entidad?.nombre || 'Sin entidad' },
+      documentacion: doc.documentacion,
       estado: { id: 0, nombre: 'VENCIDO', color: '#dc2626' }, // Color rojo para vencidos
       tipo: 'entidad'
     }));
@@ -366,9 +337,9 @@ export const getDocumentosVencidos = async (req: AuthRequest, res: Response) => 
     const documentosUniversalFormatted = documentosUniversal.map(doc => ({
       id: doc.id,
       fechaVencimiento: doc.fechaVencimiento,
-      recurso: { apellido: 'UNIVERSAL', nombre: doc.codigo },
-      documentacion: { codigo: doc.codigo, descripcion: doc.descripcion },
-      estado: (doc as any).estado,
+      recurso: { apellido: 'UNIVERSAL', nombre: doc.nombre },
+      documentacion: { descripcion: doc.descripcion },
+      estado: doc.estado,
       tipo: 'universal'
     }));
 

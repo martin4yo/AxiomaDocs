@@ -5,12 +5,14 @@ import {
   createEntidad,
   updateEntidad,
   deleteEntidad,
-  addDocumentacionToEntidad,
+  getEntidadDocumentacion,
+  assignDocumentacionToEntidad,
   updateEntidadDocumentacion,
-  removeDocumentacionFromEntidad,
-  addRecursoToEntidad,
+  deleteEntidadDocumentacion,
+  getEntidadRecursos,
+  assignRecursoToEntidad,
   updateEntidadRecurso,
-  removeRecursoFromEntidad,
+  deleteEntidadRecurso,
 } from '../controllers/entidadController';
 import { authenticateToken } from '../middleware/auth';
 
@@ -23,11 +25,17 @@ router.get('/:id', getEntidad);
 router.post('/', createEntidad);
 router.put('/:id', updateEntidad);
 router.delete('/:id', deleteEntidad);
-router.post('/:id/documentacion', addDocumentacionToEntidad);
-router.put('/documentacion/:entidadDocId', updateEntidadDocumentacion);
-router.delete('/documentacion/:entidadDocId', removeDocumentacionFromEntidad);
-router.post('/:id/recursos', addRecursoToEntidad);
-router.put('/recursos/:entidadRecursoId', updateEntidadRecurso);
-router.delete('/recursos/:entidadRecursoId', removeRecursoFromEntidad);
+
+// Documentación de entidades
+router.get('/:id/documentacion', getEntidadDocumentacion);
+router.post('/:entidadId/documentacion/:documentacionId', assignDocumentacionToEntidad);
+router.put('/documentacion/:id', updateEntidadDocumentacion);
+router.delete('/documentacion/:id', deleteEntidadDocumentacion);
+
+// Recursos de entidades
+router.get('/:id/recursos', getEntidadRecursos);
+router.post('/:entidadId/recursos/:recursoId', assignRecursoToEntidad);
+router.put('/recursos/:id', updateEntidadRecurso);
+router.delete('/recursos/:id', deleteEntidadRecurso);
 
 export default router;

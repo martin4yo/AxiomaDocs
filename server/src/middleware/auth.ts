@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { Usuario } from '../models';
+import prisma from '../lib/prisma';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -22,8 +22,16 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const usuario = await Usuario.findByPk(decoded.userId, {
-      attributes: { exclude: ['password'] }
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nombre: true,
+        apellido: true,
+        activo: true
+      }
     });
 
     if (!usuario || !usuario.activo) {

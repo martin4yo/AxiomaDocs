@@ -35,7 +35,18 @@
       "Bash(DB_ALLOW_ALTER=true ./kill-port-5000.bat)",
       "Bash(npx sequelize-cli:*)",
       "Bash(tasklist)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "Bash(cat:*)",
+      "Bash(unzip:*)",
+      "Bash(telnet:*)",
+      "Bash(nmap:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(findstr:*)",
+      "Bash(ts-node:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx prisma:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

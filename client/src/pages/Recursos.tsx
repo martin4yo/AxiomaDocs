@@ -229,7 +229,7 @@ const Recursos: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-8 mt-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <Users className="h-8 w-8 mr-3 text-sky-600" />
           Recursos
@@ -244,9 +244,9 @@ const Recursos: React.FC = () => {
                 { key: 'codigo', label: 'Código', width: 15 },
                 { key: 'apellido', label: 'Apellido', width: 20 },
                 { key: 'nombre', label: 'Nombre', width: 20 },
-                { key: 'cuil', label: 'CUIL', width: 15 },
+                { key: 'dni', label: 'DNI', width: 15 },
                 { key: 'telefono', label: 'Teléfono', width: 15 },
-                { key: 'fechaAlta', label: 'Fecha Alta', width: 15 },
+                { key: 'fechaIngreso', label: 'Fecha Ingreso', width: 15 },
                 { key: 'estadoNombre', label: 'Estado', width: 15 },
                 { key: 'estadoCritico', label: 'Estado Crítico', width: 15 },
                 { key: 'proximosVencimientos', label: 'Próximos Venc.', width: 15 },
@@ -272,7 +272,7 @@ const Recursos: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Buscar por código, nombre, apellido o CUIL..."
+              placeholder="Buscar por código, nombre, apellido o DNI..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -293,9 +293,9 @@ const Recursos: React.FC = () => {
                 <tr>
                   <th>Código</th>
                   <th>Apellido y Nombre</th>
-                  <th>CUIL</th>
+                  <th>DNI</th>
                   <th>Teléfono</th>
-                  <th>Fecha Alta</th>
+                  <th>Fecha Ingreso</th>
                   <th>Estado</th>
                   <th>Estado Crítico</th>
                   <th>Próximos Venc.</th>
@@ -306,11 +306,11 @@ const Recursos: React.FC = () => {
                 {recursosData?.recursos.map((recurso) => (
                   <React.Fragment key={recurso.id}>
                     <tr className={recurso.fechaBaja ? 'opacity-60 bg-red-50' : ''}>
-                      <td className="font-medium">{recurso.codigo}</td>
+                      <td className="font-medium">{recurso.codigo || `REC${recurso.id.toString().padStart(3, '0')}`}</td>
                       <td>{recurso.apellido}, {recurso.nombre}</td>
-                      <td>{recurso.cuil || '-'}</td>
+                      <td>{recurso.dni || '-'}</td>
                       <td>{recurso.telefono || '-'}</td>
-                      <td>{formatDateLocal(recurso.fechaAlta)}</td>
+                      <td>{formatDateLocal(recurso.fechaIngreso)}</td>
                       <td>
                         <span className={`status-badge ${recurso.fechaBaja ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                           {recurso.fechaBaja ? 'Inactivo' : 'Activo'}
@@ -410,7 +410,7 @@ const Recursos: React.FC = () => {
                                       <React.Fragment key={doc.id}>
                                         <tr className="border-b border-gray-100">
                                           <td className="py-2">
-                                          {doc.documentacion?.codigo} - {doc.documentacion?.descripcion}
+                                          {doc.documentacion?.codigo || `DOC${doc.documentacion?.id?.toString().padStart(3, '0')}`} - {doc.documentacion?.nombre}
                                         </td>
                                         <td className="py-2">{formatDateLocal(doc.fechaEmision)}</td>
                                         <td className="py-2">{formatDateLocal(doc.fechaTramitacion)}</td>
@@ -493,7 +493,7 @@ const Recursos: React.FC = () => {
                                   <thead>
                                     <tr className="border-b border-purple-200">
                                       <th className="text-left py-2">Entidad</th>
-                                      <th className="text-left py-2">CUIT</th>
+                                      <th className="text-left py-2">Descripción</th>
                                       <th className="text-left py-2">Fecha Inicio</th>
                                       <th className="text-left py-2">Fecha Fin</th>
                                       <th className="text-left py-2">Estado</th>
@@ -503,10 +503,10 @@ const Recursos: React.FC = () => {
                                     {recurso.entidadRecurso.map((entRec) => (
                                       <tr key={entRec.id} className="border-b border-purple-100">
                                         <td className="py-2 font-medium">
-                                          {entRec.entidad?.razonSocial || '-'}
+                                          {entRec.entidad?.nombre || '-'}
                                         </td>
                                         <td className="py-2">
-                                          {entRec.entidad?.cuit || '-'}
+                                          {entRec.entidad?.descripcion || '-'}
                                         </td>
                                         <td className="py-2">
                                           {formatDateLocal(entRec.fechaInicio)}

@@ -21,15 +21,20 @@ export interface Estado {
 
 export interface Recurso {
   id: number;
-  codigo: string;
-  apellido: string;
+  codigo?: string;
   nombre: string;
+  apellido: string;
+  dni?: string;
+  email?: string;
   telefono?: string;
-  cuil?: string;
   direccion?: string;
-  localidad?: string;
-  fechaAlta: string;
+  fechaNacimiento?: string;
+  fechaIngreso?: string;
   fechaBaja?: string;
+  observaciones?: string;
+  estadoId: number;
+  activo: boolean;
+  estado?: Estado;
   recursoDocumentacion?: RecursoDocumentacion[];
   entidadRecurso?: EntidadRecurso[];
   createdAt: string;
@@ -38,15 +43,13 @@ export interface Recurso {
 
 export interface Documentacion {
   id: number;
-  codigo: string;
-  descripcion: string;
+  codigo?: string;
+  nombre: string;
+  descripcion?: string;
   diasVigencia: number;
   diasAnticipacion: number;
-  esObligatorio: boolean;
   esUniversal: boolean;
-  estadoVencimientoId: number;
-  estadoVencimiento?: Estado;
-  estadoId?: number;
+  estadoId: number;
   estado?: Estado;
   // Campos de fechas universales
   fechaEmision?: string;
@@ -59,12 +62,18 @@ export interface Documentacion {
 
 export interface Entidad {
   id: number;
-  razonSocial: string;
-  cuit: string;
-  domicilio?: string;
+  nombre: string;
+  descripcion?: string;
+  url?: string;
+  contacto?: string;
+  email?: string;
   telefono?: string;
-  localidad?: string;
-  urlPlataformaDocumentacion?: string;
+  direccion?: string;
+  fechaIngreso?: string;
+  observaciones?: string;
+  estadoId: number;
+  activo: boolean;
+  estado?: Estado;
   entidadDocumentacion?: EntidadDocumentacion[];
   entidadRecurso?: EntidadRecurso[];
   estadoCritico?: Estado;
@@ -92,6 +101,7 @@ export interface EntidadDocumentacion {
   id: number;
   entidadId: number;
   documentacionId: number;
+  estadoId?: number;
   esInhabilitante: boolean;
   enviarPorMail: boolean;
   mailDestino?: string;
@@ -101,6 +111,7 @@ export interface EntidadDocumentacion {
   fechaVencimiento?: string;
   entidad?: Entidad;
   documentacion?: Documentacion;
+  estado?: Estado;
   createdAt: string;
   updatedAt: string;
 }

@@ -2,19 +2,23 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { initializeDatabase } from './models';
+import prisma from './lib/prisma';
 import authRoutes from './routes/authRoutes';
 import estadoRoutes from './routes/estadoRoutes';
+import dashboardRoutes from './routes/dashboard-simple';
 import recursoRoutes from './routes/recursoRoutes';
 import documentacionRoutes from './routes/documentacionRoutes';
 import entidadRoutes from './routes/entidadRoutes';
-import dashboardRoutes from './routes/dashboard-simple';
-import reportesRoutes from './routes/reportes';
 import usuarioRoutes from './routes/usuarioRoutes';
+// import reportesRoutes from './routes/reportes';
 import archivosRoutes from './routes/archivos';
-import intercambioRoutes from './routes/intercambioRoutes';
-import workflowRoutes from './routes/workflowRoutes';
-import estadoDocumentosRoutes from './routes/estadoDocumentos';
+// import intercambioRoutes from './routes/intercambioRoutes';
+// import workflowRoutes from './routes/workflowRoutes';
+// import estadoDocumentosRoutes from './routes/estadoDocumentos';
+// import gestionDocumentosRoutes from './routes/gestionDocumentosRoutes';
+// import documentosRoutes from './routes/documentosRoutes';
+// import eventosRoutes from './routes/eventosRoutes';
+// import seguimientoRoutes from './routes/seguimientoRoutes';
 import cronService from './services/cronService';
 
 dotenv.config();
@@ -48,16 +52,20 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/estados', estadoRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/recursos', recursoRoutes);
 app.use('/api/documentacion', documentacionRoutes);
 app.use('/api/entidades', entidadRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/reportes', reportesRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+// app.use('/api/reportes', reportesRoutes);
 app.use('/api/archivos', archivosRoutes);
-app.use('/api/intercambios', intercambioRoutes);
-app.use('/api/workflows', workflowRoutes);
-app.use('/api/estado-documentos', estadoDocumentosRoutes);
+// app.use('/api/intercambios', intercambioRoutes);
+// app.use('/api/workflows', workflowRoutes);
+// app.use('/api/estado-documentos', estadoDocumentosRoutes);
+// app.use('/api/gestion-documentos', gestionDocumentosRoutes);
+// app.use('/api/documentos', documentosRoutes);
+// app.use('/api/eventos', eventosRoutes);
+// app.use('/api/seguimiento', seguimientoRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -76,8 +84,10 @@ app.use('*', (req, res) => {
 // Initialize database and start server
 const startServer = async () => {
   try {
-    await initializeDatabase();
-    
+    // Test database connection
+    await prisma.$connect();
+    console.log('Conexión a PostgreSQL establecida correctamente.');
+
     app.listen(Number(PORT), HOST, () => {
       console.log(`Servidor corriendo en ${HOST}:${PORT}`);
       console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);

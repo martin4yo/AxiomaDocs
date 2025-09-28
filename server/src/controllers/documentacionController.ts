@@ -1,61 +1,55 @@
 import { Response } from 'express';
-import { Op } from 'sequelize';
-import { Documentacion, Estado, RecursoDocumentacion, Recurso, EntidadDocumentacion, Entidad } from '../models';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
-import { calcularFechaVencimiento } from '../utils/documentHelpers';
 
 export const getDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    const whereClause = search ? {
-      [Op.or]: [
-        { codigo: { [Op.like]: `%${search}%` } },
-        { descripcion: { [Op.like]: `%${search}%` } },
+    // Build search filter
+    const searchFilter = search ? {
+      OR: [
+        { nombre: { contains: search.toString(), mode: 'insensitive' as const } },
+        { descripcion: { contains: search.toString(), mode: 'insensitive' as const } },
       ]
     } : {};
 
-    const { rows: documentacion, count } = await Documentacion.findAndCountAll({
-      where: whereClause,
-      include: [
-        {
-          model: Estado,
-          as: 'estadoVencimiento',
-        },
-        {
-          model: Estado,
-          as: 'estado',
-        },
-        {
-          model: RecursoDocumentacion,
-          as: 'recursoDocumentacion',
-          include: [
-            {
-              model: Recurso,
-              as: 'recurso',
-            },
-            {
-              model: Estado,
-              as: 'estado',
+    const [documentacionRaw, count] = await Promise.all([
+      prisma.documentacion.findMany({
+        where: searchFilter,
+        orderBy: { nombre: 'asc' },
+        take: Number(limit),
+        skip: offset,
+        include: {
+          estado: true,
+          recursoDocumentacion: {
+            include: {
+              recurso: true,
+              estado: true
             }
-          ]
-        },
-        {
-          model: EntidadDocumentacion,
-          as: 'entidadDocumentacion',
-          include: [
-            {
-              model: Entidad,
-              as: 'entidad',
+          },
+          entidadDocumentacion: {
+            include: {
+              entidad: true,
+              estado: true
             }
-          ]
+          }
         }
-      ],
-      order: [['descripcion', 'ASC']],
-      limit: Number(limit),
-      offset,
-    });
+      }),
+      prisma.documentacion.count({
+        where: searchFilter
+      })
+    ]);
+
+    // Mapear los datos para compatibilidad con el frontend
+    const documentacion = documentacionRaw.map(doc => ({
+      ...doc,
+      entidadDocumentacion: doc.entidadDocumentacion.map(entDoc => ({
+        ...entDoc,
+        enviarPorMail: entDoc.notificarEmail // Mapear el campo
+      }))
+    }));
 
     res.json({
       documentacion,
@@ -72,124 +66,102 @@ export const getDocumentacion = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getDocumentacionById = async (req: AuthRequest, res: Response) => {
+export const getDocumento = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const documentacion = await Documentacion.findByPk(id, {
-      include: [
-        {
-          model: Estado,
-          as: 'estadoVencimiento',
+    const documentoRaw = await prisma.documentacion.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        estado: true,
+        recursoDocumentacion: {
+          include: {
+            recurso: true,
+            estado: true
+          }
         },
-        {
-          model: Estado,
-          as: 'estado',
-        },
-        {
-          model: RecursoDocumentacion,
-          as: 'recursoDocumentacion',
-          include: [
-            {
-              model: Recurso,
-              as: 'recurso',
-            },
-            {
-              model: Estado,
-              as: 'estado',
-            }
-          ]
-        },
-        {
-          model: EntidadDocumentacion,
-          as: 'entidadDocumentacion',
-          include: [
-            {
-              model: Entidad,
-              as: 'entidad',
-            }
-          ]
+        entidadDocumentacion: {
+          include: {
+            entidad: true,
+            estado: true
+          }
         }
-      ]
+      }
     });
 
-    if (!documentacion) {
+    if (!documentoRaw) {
       return res.status(404).json({ message: 'Documentación no encontrada' });
     }
 
-    res.json(documentacion);
+    // Mapear los datos para compatibilidad con el frontend
+    const documento = {
+      ...documentoRaw,
+      entidadDocumentacion: documentoRaw.entidadDocumentacion.map(entDoc => ({
+        ...entDoc,
+        enviarPorMail: entDoc.notificarEmail // Mapear el campo
+      }))
+    };
+
+    res.json(documento);
   } catch (error) {
-    console.error('Error obteniendo documentación:', error);
+    console.error('Error obteniendo documento:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
 export const createDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
-    const { codigo, descripcion, diasVigencia, diasAnticipacion, esObligatorio, esUniversal, estadoVencimientoId, estadoId, fechaEmision, fechaTramitacion, fechaVencimiento: fechaVencimientoFromBody } = req.body;
-    const userId = req.user!.id;
-
-    // Usar fecha de vencimiento del cuerpo de la petición si se proporciona,
-    // caso contrario calcular automáticamente solo si es universal y tiene fecha de emisión
-    let fechaVencimiento = null;
-    if (esUniversal) {
-      if (fechaVencimientoFromBody) {
-        // Si el usuario proporcionó una fecha manualmente, usarla
-        fechaVencimiento = fechaVencimientoFromBody;
-      } else if (fechaEmision) {
-        // Solo calcular automáticamente si no se proporcionó una fecha manual
-        fechaVencimiento = calcularFechaVencimiento(new Date(fechaEmision), diasVigencia);
-      }
-    }
-
-    const documentacion = await Documentacion.create({
-      codigo,
+    const {
+      nombre,
       descripcion,
       diasVigencia,
       diasAnticipacion,
-      esObligatorio,
-      esUniversal: esUniversal || false,
-      estadoVencimientoId,
-      estadoId: (esUniversal && estadoId) ? estadoId : null,
-      fechaEmision: (esUniversal && fechaEmision) ? fechaEmision : undefined,
-      fechaTramitacion: (esUniversal && fechaTramitacion) ? fechaTramitacion : undefined,
-      fechaVencimiento: fechaVencimiento || undefined,
-      creadoPor: userId,
-      modificadoPor: userId,
+      esUniversal,
+      fechaEmision,
+      fechaTramitacion,
+      fechaVencimiento,
+      estadoId
+    } = req.body;
+    const userId = req.user!.id;
+
+    // Verificar que el estado existe
+    const estado = await prisma.estado.findUnique({
+      where: { id: parseInt(estadoId) }
     });
 
-    const result = await Documentacion.findByPk(documentacion.id, {
-      include: [
-        {
-          model: Estado,
-          as: 'estadoVencimiento',
-        },
-        {
-          model: Estado,
-          as: 'estado',
-        }
-      ]
+    if (!estado) {
+      return res.status(400).json({ message: 'Estado no válido' });
+    }
+
+    // Calcular fecha de vencimiento si se proporciona fecha de emisión
+    let calculatedFechaVencimiento = fechaVencimiento;
+    if (fechaEmision && diasVigencia && !fechaVencimiento) {
+      const emision = new Date(fechaEmision);
+      emision.setDate(emision.getDate() + parseInt(diasVigencia));
+      calculatedFechaVencimiento = emision.toISOString().split('T')[0];
+    }
+
+    const documento = await prisma.documentacion.create({
+      data: {
+        nombre,
+        descripcion,
+        diasVigencia: parseInt(diasVigencia) || 365,
+        diasAnticipacion: parseInt(diasAnticipacion) || 30,
+        esUniversal: Boolean(esUniversal),
+        fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : null,
+        fechaVencimiento: calculatedFechaVencimiento ? new Date(calculatedFechaVencimiento) : null,
+        estadoId: parseInt(estadoId),
+        createdBy: userId,
+        updatedBy: userId,
+      },
+      include: {
+        estado: true
+      }
     });
 
-    res.status(201).json(result);
-  } catch (error: any) {
+    res.status(201).json(documento);
+  } catch (error) {
     console.error('Error creando documentación:', error);
-    
-    // Manejar error de código duplicado
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ 
-        message: 'Ya existe una documentación con este código' 
-      });
-    }
-    
-    // Manejar errores de validación
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map((err: any) => err.message);
-      return res.status(400).json({ 
-        message: 'Datos inválidos', 
-        errors: validationErrors 
-      });
-    }
-    
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
@@ -197,79 +169,71 @@ export const createDocumentacion = async (req: AuthRequest, res: Response) => {
 export const updateDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { codigo, descripcion, diasVigencia, diasAnticipacion, esObligatorio, esUniversal, estadoVencimientoId, estadoId, fechaEmision, fechaTramitacion, fechaVencimiento: fechaVencimientoFromBody } = req.body;
-    const userId = req.user!.id;
-
-    const documentacion = await Documentacion.findByPk(id);
-
-    if (!documentacion) {
-      return res.status(404).json({ message: 'Documentación no encontrada' });
-    }
-
-    // Usar fecha de vencimiento del cuerpo de la petición si se proporciona,
-    // caso contrario calcular automáticamente solo si es universal y tiene fecha de emisión
-    let fechaVencimiento = documentacion.fechaVencimiento;
-    if (esUniversal) {
-      if (fechaVencimientoFromBody) {
-        // Si el usuario proporcionó una fecha manualmente, usarla
-        fechaVencimiento = fechaVencimientoFromBody;
-      } else if (fechaEmision && !fechaVencimientoFromBody) {
-        // Solo calcular automáticamente si no se proporcionó una fecha manual
-        fechaVencimiento = calcularFechaVencimiento(new Date(fechaEmision), diasVigencia);
-      }
-    } else {
-      // Si ya no es universal, limpiar vencimiento
-      fechaVencimiento = undefined;
-    }
-
-    await documentacion.update({
-      codigo,
+    const {
+      nombre,
       descripcion,
       diasVigencia,
       diasAnticipacion,
-      esObligatorio,
-      esUniversal: esUniversal || false,
-      estadoVencimientoId,
-      estadoId: (esUniversal && estadoId) ? estadoId : null,
-      fechaEmision: (esUniversal && fechaEmision) ? fechaEmision : undefined,
-      fechaTramitacion: (esUniversal && fechaTramitacion) ? fechaTramitacion : undefined,
-      fechaVencimiento: fechaVencimiento || undefined,
-      modificadoPor: userId,
+      esUniversal,
+      fechaEmision,
+      fechaTramitacion,
+      fechaVencimiento,
+      estadoId,
+      activo
+    } = req.body;
+    const userId = req.user!.id;
+
+    // Verificar que el documento existe
+    const documentoExistente = await prisma.documentacion.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    const result = await Documentacion.findByPk(id, {
-      include: [
-        {
-          model: Estado,
-          as: 'estadoVencimiento',
-        },
-        {
-          model: Estado,
-          as: 'estado',
-        }
-      ]
+    if (!documentoExistente) {
+      return res.status(404).json({ message: 'Documentación no encontrada' });
+    }
+
+    // Verificar que el estado existe si se proporciona
+    if (estadoId) {
+      const estado = await prisma.estado.findUnique({
+        where: { id: parseInt(estadoId) }
+      });
+
+      if (!estado) {
+        return res.status(400).json({ message: 'Estado no válido' });
+      }
+    }
+
+    // Calcular fecha de vencimiento si se proporciona fecha de emisión
+    let calculatedFechaVencimiento = fechaVencimiento;
+    if (fechaEmision && diasVigencia && !fechaVencimiento) {
+      const emision = new Date(fechaEmision);
+      emision.setDate(emision.getDate() + parseInt(diasVigencia));
+      calculatedFechaVencimiento = emision.toISOString().split('T')[0];
+    }
+
+    const documentoActualizado = await prisma.documentacion.update({
+      where: { id: parseInt(id) },
+      data: {
+        nombre,
+        descripcion,
+        diasVigencia: diasVigencia ? parseInt(diasVigencia) : undefined,
+        diasAnticipacion: diasAnticipacion ? parseInt(diasAnticipacion) : undefined,
+        esUniversal: esUniversal !== undefined ? Boolean(esUniversal) : undefined,
+        fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : null,
+        fechaVencimiento: calculatedFechaVencimiento ? new Date(calculatedFechaVencimiento) : null,
+        estadoId: estadoId ? parseInt(estadoId) : undefined,
+        activo: activo !== undefined ? activo : undefined,
+        updatedBy: userId,
+      },
+      include: {
+        estado: true
+      }
     });
 
-    res.json(result);
-  } catch (error: any) {
+    res.json(documentoActualizado);
+  } catch (error) {
     console.error('Error actualizando documentación:', error);
-    
-    // Manejar error de código duplicado
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ 
-        message: 'Ya existe una documentación con este código' 
-      });
-    }
-    
-    // Manejar errores de validación
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map((err: any) => err.message);
-      return res.status(400).json({ 
-        message: 'Datos inválidos', 
-        errors: validationErrors 
-      });
-    }
-    
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
@@ -278,13 +242,18 @@ export const deleteDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const documentacion = await Documentacion.findByPk(id);
+    const documento = await prisma.documentacion.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!documentacion) {
+    if (!documento) {
       return res.status(404).json({ message: 'Documentación no encontrada' });
     }
 
-    await documentacion.destroy();
+    await prisma.documentacion.delete({
+      where: { id: parseInt(id) }
+    });
+
     res.json({ message: 'Documentación eliminada correctamente' });
   } catch (error) {
     console.error('Error eliminando documentación:', error);
@@ -292,77 +261,66 @@ export const deleteDocumentacion = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const addRecursoToDocumentacion = async (req: AuthRequest, res: Response) => {
+// Recursos asignados a documentación
+export const getDocumentacionRecursos = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { recursoId, fechaEmision, fechaTramitacion, estadoId } = req.body;
-    const userId = req.user!.id;
 
-    // Verificar que el recurso no esté dado de baja
-    const recurso = await Recurso.findByPk(recursoId);
-    if (!recurso) {
-      return res.status(404).json({ message: 'Recurso no encontrado' });
-    }
-    
-    if (recurso.fechaBaja) {
-      return res.status(400).json({ message: 'No se pueden asignar documentos a recursos dados de baja' });
-    }
-
-    // Obtener la documentación para calcular fecha de vencimiento
-    const documentacion = await Documentacion.findByPk(id);
-    if (!documentacion) {
-      return res.status(404).json({ message: 'Documentación no encontrada' });
-    }
-
-    // Verificar si ya existe la asociación
-    const existingAssociation = await RecursoDocumentacion.findOne({
-      where: {
-        recursoId: recursoId,
-        documentacionId: Number(id)
+    const recursos = await prisma.recursoDocumentacion.findMany({
+      where: { documentacionId: parseInt(id) },
+      include: {
+        recurso: true,
+        estado: true,
+        documentacion: {
+          select: {
+            id: true,
+            nombre: true,
+            diasVigencia: true
+          }
+        }
+      },
+      orderBy: {
+        recurso: {
+          apellido: 'asc'
+        }
       }
     });
 
-    if (existingAssociation) {
-      return res.status(400).json({ 
-        message: 'Este recurso ya está asignado a la documentación. Use la opción de editar para modificarlo.' 
-      });
-    }
-
-    // Calcular fecha de vencimiento
-    let fechaVencimiento = null;
-    if (fechaEmision) {
-      const emision = new Date(fechaEmision);
-      emision.setDate(emision.getDate() + documentacion.diasVigencia);
-      fechaVencimiento = emision;
-    }
-
-    const recursoDoc = await RecursoDocumentacion.create({
-      recursoId,
-      documentacionId: Number(id),
-      fechaEmision,
-      fechaTramitacion,
-      fechaVencimiento: fechaVencimiento || undefined,
-      estadoId,
-      creadoPor: userId,
-      modificadoPor: userId,
-    });
-
-    const result = await RecursoDocumentacion.findByPk(recursoDoc.id, {
-      include: [
-        {
-          model: Recurso,
-          as: 'recurso',
-        },
-        {
-          model: Estado,
-          as: 'estado',
-        }
-      ]
-    });
-
-    res.status(201).json(result);
+    res.json(recursos);
   } catch (error) {
-    console.error('Error agregando recurso a la documentación:', error);
+    console.error('Error obteniendo recursos de la documentación:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+// Entidades asignadas a documentación
+export const getDocumentacionEntidades = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const entidades = await prisma.entidadDocumentacion.findMany({
+      where: { documentacionId: parseInt(id) },
+      include: {
+        entidad: true,
+        estado: true,
+        documentacion: {
+          select: {
+            id: true,
+            nombre: true,
+            diasVigencia: true
+          }
+        }
+      },
+      orderBy: {
+        entidad: {
+          nombre: 'asc'
+        }
+      }
+    });
+
+    res.json(entidades);
+  } catch (error) {
+    console.error('Error obteniendo entidades de la documentación:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };

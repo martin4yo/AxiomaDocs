@@ -1,13 +1,12 @@
 import { Response } from 'express';
-import { DocumentoArchivo, Documentacion, RecursoDocumentacion, EntidadDocumentacion } from '../models';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
-import { validateUploadedFile, deleteFile, getFileInfo } from '../middleware/upload';
 import path from 'path';
 import fs from 'fs';
 
 // Helper para determinar la siguiente versión de un archivo
-const getNextVersion = async (filename: string, type: 'documentacion' | 'recurso-documentacion' | 'entidad-documentacion', referenceId: number) => {
-  const whereClause: any = { filename };
+const getNextVersion = async (nombreArchivo: string, type: 'documentacion' | 'recurso-documentacion' | 'entidad-documentacion', referenceId: number) => {
+  const whereClause: any = { nombreArchivo };
 
   if (type === 'documentacion') {
     whereClause.documentacionId = referenceId;
@@ -17,351 +16,351 @@ const getNextVersion = async (filename: string, type: 'documentacion' | 'recurso
     whereClause.entidadDocumentacionId = referenceId;
   }
 
-  const existingFiles = await DocumentoArchivo.findAll({
+  const existingFiles = await prisma.documentoArchivo.findMany({
     where: whereClause,
-    order: [['version', 'DESC']],
-    limit: 1
+    orderBy: { createdAt: 'desc' },
+    take: 1
   });
 
-  return existingFiles.length > 0 ? existingFiles[0].version + 1 : 1;
+  return existingFiles.length + 1;
 };
 
-// Upload archivos para documentación universal
-export const uploadDocumentacionArchivos = async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user!.id;
-    const files = req.files as Express.Multer.File[];
-
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: 'No se proporcionaron archivos' });
-    }
-
-    // Verificar que la documentación existe
-    const documentacion = await Documentacion.findByPk(id);
-    if (!documentacion) {
-      return res.status(404).json({ message: 'Documentación no encontrada' });
-    }
-
-    const archivosCreados = [];
-
-    for (const file of files) {
-      try {
-        validateUploadedFile(file);
-
-        // Obtener la siguiente versión
-        const version = await getNextVersion(file.originalname, 'documentacion', Number(id));
-
-        const archivo = await DocumentoArchivo.create({
-          filename: file.originalname,
-          storedFilename: file.filename,
-          mimeType: file.mimetype,
-          size: file.size,
-          descripcion: req.body.descripcion || `Archivo ${file.originalname}`,
-          version,
-          documentacionId: Number(id),
-          creadoPor: userId
-        });
-
-        archivosCreados.push(archivo);
-      } catch (error) {
-        // Si hay error, eliminar el archivo del disco
-        deleteFile(file.path);
-        console.error(`Error procesando archivo ${file.originalname}:`, error);
-      }
-    }
-
-    if (archivosCreados.length === 0) {
-      return res.status(400).json({ message: 'No se pudo procesar ningún archivo' });
-    }
-
-    res.status(201).json({
-      message: `${archivosCreados.length} archivo(s) subido(s) correctamente`,
-      archivos: archivosCreados
-    });
-
-  } catch (error) {
-    console.error('Error subiendo archivos:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-};
-
-// Upload archivos para recurso-documentación
-export const uploadRecursoDocumentacionArchivos = async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user!.id;
-    const files = req.files as Express.Multer.File[];
-
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: 'No se proporcionaron archivos' });
-    }
-
-    // Verificar que la asignación recurso-documentación existe
-    const recursoDoc = await RecursoDocumentacion.findByPk(id);
-    if (!recursoDoc) {
-      return res.status(404).json({ message: 'Asignación recurso-documentación no encontrada' });
-    }
-
-    const archivosCreados = [];
-
-    for (const file of files) {
-      try {
-        validateUploadedFile(file);
-
-        const version = await getNextVersion(file.originalname, 'recurso-documentacion', Number(id));
-
-        const archivo = await DocumentoArchivo.create({
-          filename: file.originalname,
-          storedFilename: file.filename,
-          mimeType: file.mimetype,
-          size: file.size,
-          descripcion: req.body.descripcion || `Archivo ${file.originalname}`,
-          version,
-          recursoDocumentacionId: Number(id),
-          creadoPor: userId
-        });
-
-        archivosCreados.push(archivo);
-      } catch (error) {
-        deleteFile(file.path);
-        console.error(`Error procesando archivo ${file.originalname}:`, error);
-      }
-    }
-
-    if (archivosCreados.length === 0) {
-      return res.status(400).json({ message: 'No se pudo procesar ningún archivo' });
-    }
-
-    res.status(201).json({
-      message: `${archivosCreados.length} archivo(s) subido(s) correctamente`,
-      archivos: archivosCreados
-    });
-
-  } catch (error) {
-    console.error('Error subiendo archivos:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-};
-
-// Upload archivos para entidad-documentación
-export const uploadEntidadDocumentacionArchivos = async (req: AuthRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user!.id;
-    const files = req.files as Express.Multer.File[];
-
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: 'No se proporcionaron archivos' });
-    }
-
-    // Verificar que la asignación entidad-documentación existe
-    const entidadDoc = await EntidadDocumentacion.findByPk(id);
-    if (!entidadDoc) {
-      return res.status(404).json({ message: 'Asignación entidad-documentación no encontrada' });
-    }
-
-    const archivosCreados = [];
-
-    for (const file of files) {
-      try {
-        validateUploadedFile(file);
-
-        const version = await getNextVersion(file.originalname, 'entidad-documentacion', Number(id));
-
-        const archivo = await DocumentoArchivo.create({
-          filename: file.originalname,
-          storedFilename: file.filename,
-          mimeType: file.mimetype,
-          size: file.size,
-          descripcion: req.body.descripcion || `Archivo ${file.originalname}`,
-          version,
-          entidadDocumentacionId: Number(id),
-          creadoPor: userId
-        });
-
-        archivosCreados.push(archivo);
-      } catch (error) {
-        deleteFile(file.path);
-        console.error(`Error procesando archivo ${file.originalname}:`, error);
-      }
-    }
-
-    if (archivosCreados.length === 0) {
-      return res.status(400).json({ message: 'No se pudo procesar ningún archivo' });
-    }
-
-    res.status(201).json({
-      message: `${archivosCreados.length} archivo(s) subido(s) correctamente`,
-      archivos: archivosCreados
-    });
-
-  } catch (error) {
-    console.error('Error subiendo archivos:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-};
-
-// Obtener archivos por documentación
+// Get archivos para documentación universal
 export const getDocumentacionArchivos = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const archivos = await DocumentoArchivo.findAll({
-      where: { documentacionId: id },
-      include: [
-        {
-          model: DocumentoArchivo.associations.creador.target,
-          as: 'creador',
-          attributes: ['nombre', 'apellido', 'username']
-        }
-      ],
-      order: [['filename', 'ASC'], ['version', 'DESC']]
+    // Verificar que la documentación existe
+    const documentacion = await prisma.documentacion.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    res.json({ data: archivos });
+    if (!documentacion) {
+      return res.status(404).json({ message: 'Documentación no encontrada' });
+    }
+
+    const archivos = await prisma.documentoArchivo.findMany({
+      where: {
+        documentacionId: parseInt(id)
+      },
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            username: true,
+            nombre: true,
+            apellido: true
+          }
+        }
+      },
+      orderBy: [
+        { nombreArchivo: 'asc' },
+        { version: 'desc' },
+        { createdAt: 'desc' }
+      ]
+    });
+
+    // Mapear los campos para compatibilidad con el frontend
+    const archivosMapeados = archivos.map(archivo => ({
+      id: archivo.id,
+      filename: archivo.nombreArchivo,
+      storedFilename: archivo.rutaArchivo,
+      mimeType: archivo.tipoMime,
+      size: archivo.tamano,
+      descripcion: archivo.descripcion,
+      version: archivo.version,
+      documentacionId: archivo.documentacionId,
+      creadoPor: archivo.createdBy,
+      createdAt: archivo.createdAt.toISOString(),
+      updatedAt: archivo.updatedAt.toISOString(),
+      creador: archivo.createdByUser ? {
+        nombre: archivo.createdByUser.nombre,
+        apellido: archivo.createdByUser.apellido
+      } : undefined
+    }));
+
+    res.json({ data: archivosMapeados });
   } catch (error) {
-    console.error('Error obteniendo archivos:', error);
+    console.error('Error obteniendo archivos de documentación:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-// Obtener archivos por recurso-documentación
+// Get archivos para recurso-documentación
 export const getRecursoDocumentacionArchivos = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const archivos = await DocumentoArchivo.findAll({
-      where: { recursoDocumentacionId: id },
-      include: [
-        {
-          model: DocumentoArchivo.associations.creador.target,
-          as: 'creador',
-          attributes: ['nombre', 'apellido', 'username']
-        }
-      ],
-      order: [['filename', 'ASC'], ['version', 'DESC']]
+    // Verificar que recurso-documentacion existe
+    const recursoDocumentacion = await prisma.recursoDocumentacion.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    res.json({ data: archivos });
+    if (!recursoDocumentacion) {
+      return res.status(404).json({ message: 'Recurso-Documentación no encontrado' });
+    }
+
+    const archivos = await prisma.documentoArchivo.findMany({
+      where: {
+        recursoDocumentacionId: parseInt(id)
+      },
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            username: true,
+            nombre: true,
+            apellido: true
+          }
+        }
+      },
+      orderBy: [
+        { nombreArchivo: 'asc' },
+        { version: 'desc' },
+        { createdAt: 'desc' }
+      ]
+    });
+
+    // Mapear los campos para compatibilidad con el frontend
+    const archivosMapeados = archivos.map(archivo => ({
+      id: archivo.id,
+      filename: archivo.nombreArchivo,
+      storedFilename: archivo.rutaArchivo,
+      mimeType: archivo.tipoMime,
+      size: archivo.tamano,
+      descripcion: archivo.descripcion,
+      version: archivo.version,
+      recursoDocumentacionId: archivo.recursoDocumentacionId,
+      creadoPor: archivo.createdBy,
+      createdAt: archivo.createdAt.toISOString(),
+      updatedAt: archivo.updatedAt.toISOString(),
+      creador: archivo.createdByUser ? {
+        nombre: archivo.createdByUser.nombre,
+        apellido: archivo.createdByUser.apellido
+      } : undefined
+    }));
+
+    res.json({ data: archivosMapeados });
   } catch (error) {
-    console.error('Error obteniendo archivos:', error);
+    console.error('Error obteniendo archivos de recurso-documentación:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-// Obtener archivos por entidad-documentación
+// Get archivos para entidad-documentación
 export const getEntidadDocumentacionArchivos = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const archivos = await DocumentoArchivo.findAll({
-      where: { entidadDocumentacionId: id },
-      include: [
-        {
-          model: DocumentoArchivo.associations.creador.target,
-          as: 'creador',
-          attributes: ['nombre', 'apellido', 'username']
-        }
-      ],
-      order: [['filename', 'ASC'], ['version', 'DESC']]
+    // Verificar que entidad-documentacion existe
+    const entidadDocumentacion = await prisma.entidadDocumentacion.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    res.json({ data: archivos });
+    if (!entidadDocumentacion) {
+      return res.status(404).json({ message: 'Entidad-Documentación no encontrada' });
+    }
+
+    const archivos = await prisma.documentoArchivo.findMany({
+      where: {
+        entidadDocumentacionId: parseInt(id)
+      },
+      include: {
+        createdByUser: {
+          select: {
+            id: true,
+            username: true,
+            nombre: true,
+            apellido: true
+          }
+        }
+      },
+      orderBy: [
+        { nombreArchivo: 'asc' },
+        { version: 'desc' },
+        { createdAt: 'desc' }
+      ]
+    });
+
+    // Mapear los campos para compatibilidad con el frontend
+    const archivosMapeados = archivos.map(archivo => ({
+      id: archivo.id,
+      filename: archivo.nombreArchivo,
+      storedFilename: archivo.rutaArchivo,
+      mimeType: archivo.tipoMime,
+      size: archivo.tamano,
+      descripcion: archivo.descripcion,
+      version: archivo.version,
+      entidadDocumentacionId: archivo.entidadDocumentacionId,
+      creadoPor: archivo.createdBy,
+      createdAt: archivo.createdAt.toISOString(),
+      updatedAt: archivo.updatedAt.toISOString(),
+      creador: archivo.createdByUser ? {
+        nombre: archivo.createdByUser.nombre,
+        apellido: archivo.createdByUser.apellido
+      } : undefined
+    }));
+
+    res.json({ data: archivosMapeados });
   } catch (error) {
-    console.error('Error obteniendo archivos:', error);
+    console.error('Error obteniendo archivos de entidad-documentación:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-// Descargar archivo
-export const downloadArchivo = async (req: AuthRequest, res: Response) => {
+// Upload archivos para documentación, recurso-documentación o entidad-documentación
+export const uploadArchivos = async (req: AuthRequest, res: Response) => {
   try {
-    const { archivoId } = req.params;
+    const { id } = req.params;
+    const userId = req.user!.id;
+    const files = req.files as Express.Multer.File[];
 
-    const archivo = await DocumentoArchivo.findByPk(archivoId);
-    if (!archivo) {
-      return res.status(404).json({ message: 'Archivo no encontrado' });
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: 'No se proporcionaron archivos' });
     }
 
-    // Construir la ruta del archivo (absoluta desde el directorio del servidor)
-    let filePath = path.join(__dirname, '../../uploads/');
-    if (archivo.documentacionId) {
-      filePath = path.join(filePath, `documentacion/${archivo.documentacionId}/${archivo.storedFilename}`);
-    } else if (archivo.recursoDocumentacionId) {
-      filePath = path.join(filePath, `recurso-documentacion/${archivo.recursoDocumentacionId}/${archivo.storedFilename}`);
-    } else if (archivo.entidadDocumentacionId) {
-      filePath = path.join(filePath, `entidad-documentacion/${archivo.entidadDocumentacionId}/${archivo.storedFilename}`);
+    // Determinar el tipo basado en la URL
+    const path = req.path;
+    let tipo: 'documentacion' | 'recurso-documentacion' | 'entidad-documentacion';
+    let entidadExiste = false;
+
+    if (path.includes('/documentacion/')) {
+      tipo = 'documentacion';
+      const documentacion = await prisma.documentacion.findUnique({
+        where: { id: parseInt(id) }
+      });
+      entidadExiste = !!documentacion;
+    } else if (path.includes('/recurso-documentacion/')) {
+      tipo = 'recurso-documentacion';
+      const recursoDocumentacion = await prisma.recursoDocumentacion.findUnique({
+        where: { id: parseInt(id) }
+      });
+      entidadExiste = !!recursoDocumentacion;
+    } else if (path.includes('/entidad-documentacion/')) {
+      tipo = 'entidad-documentacion';
+      const entidadDocumentacion = await prisma.entidadDocumentacion.findUnique({
+        where: { id: parseInt(id) }
+      });
+      entidadExiste = !!entidadDocumentacion;
+    } else {
+      return res.status(400).json({ message: 'Tipo de entidad no válido' });
     }
 
-    // Verificar que el archivo existe
-    if (!fs.existsSync(filePath)) {
-      console.error('Archivo no encontrado en:', filePath);
-      return res.status(404).json({ message: 'Archivo físico no encontrado' });
+    if (!entidadExiste) {
+      return res.status(404).json({ message: `${tipo} no encontrado(a)` });
     }
 
-    // Configurar headers para descarga
-    res.setHeader('Content-Disposition', `attachment; filename="${archivo.filename}"`);
-    res.setHeader('Content-Type', archivo.mimeType);
+    const archivosCreados = [];
 
-    // Enviar archivo
-    res.sendFile(filePath);
+    for (const file of files) {
+      try {
+        // Determinar la siguiente versión para este archivo
+        const version = await getNextVersion(file.originalname, tipo, parseInt(id));
 
+        // Preparar datos del archivo
+        const archivoData: any = {
+          nombreArchivo: file.originalname,
+          rutaArchivo: file.filename, // Nombre único generado por multer
+          tipoMime: file.mimetype,
+          tamano: file.size,
+          version: version,
+          activo: true,
+          createdBy: userId,
+          updatedBy: userId
+        };
+
+        // Asignar el ID correspondiente según el tipo
+        if (tipo === 'documentacion') {
+          archivoData.documentacionId = parseInt(id);
+        } else if (tipo === 'recurso-documentacion') {
+          archivoData.recursoDocumentacionId = parseInt(id);
+        } else if (tipo === 'entidad-documentacion') {
+          archivoData.entidadDocumentacionId = parseInt(id);
+        }
+
+        // Crear registro en base de datos
+        const archivo = await prisma.documentoArchivo.create({
+          data: archivoData
+        });
+
+        archivosCreados.push(archivo);
+      } catch (error) {
+        console.error(`Error guardando archivo ${file.originalname}:`, error);
+        // Eliminar archivo físico si falla la base de datos
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      }
+    }
+
+    if (archivosCreados.length === 0) {
+      return res.status(500).json({ message: 'No se pudo guardar ningún archivo' });
+    }
+
+    res.status(201).json({
+      message: `${archivosCreados.length} archivo(s) subido(s) correctamente`,
+      data: archivosCreados
+    });
   } catch (error) {
-    console.error('Error descargando archivo:', error);
+    console.error('Error en upload:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-// Actualizar descripción de archivo
-export const updateArchivo = async (req: AuthRequest, res: Response) => {
-  try {
-    const { archivoId } = req.params;
-    const { descripcion } = req.body;
-
-    const archivo = await DocumentoArchivo.findByPk(archivoId);
-    if (!archivo) {
-      return res.status(404).json({ message: 'Archivo no encontrado' });
-    }
-
-    await archivo.update({ descripcion });
-
-    res.json({ message: 'Descripción actualizada correctamente', archivo });
-  } catch (error) {
-    console.error('Error actualizando archivo:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-};
-
-// Eliminar archivo
+// Delete archivo
 export const deleteArchivo = async (req: AuthRequest, res: Response) => {
   try {
     const { archivoId } = req.params;
+    const userId = req.user!.id;
 
-    const archivo = await DocumentoArchivo.findByPk(archivoId);
+    const archivo = await prisma.documentoArchivo.findUnique({
+      where: { id: parseInt(archivoId) }
+    });
+
     if (!archivo) {
       return res.status(404).json({ message: 'Archivo no encontrado' });
     }
 
-    // Construir la ruta del archivo para eliminarlo del disco
-    let filePath = 'uploads/';
-    if (archivo.documentacionId) {
-      filePath += `documentacion/${archivo.documentacionId}/${archivo.storedFilename}`;
-    } else if (archivo.recursoDocumentacionId) {
-      filePath += `recurso-documentacion/${archivo.recursoDocumentacionId}/${archivo.storedFilename}`;
-    } else if (archivo.entidadDocumentacionId) {
-      filePath += `entidad-documentacion/${archivo.entidadDocumentacionId}/${archivo.storedFilename}`;
+    // Eliminar archivo físico si existe
+    const fullPath = path.join(__dirname, '../../uploads/documentacion', archivo.documentacionId.toString(), archivo.rutaArchivo);
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
     }
 
-    // Eliminar archivo del disco
-    deleteFile(filePath);
-
-    // Eliminar registro de la base de datos
-    await archivo.destroy();
+    // Eliminar registro de base de datos
+    await prisma.documentoArchivo.delete({
+      where: { id: parseInt(archivoId) }
+    });
 
     res.json({ message: 'Archivo eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando archivo:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+// Download archivo
+export const downloadArchivo = async (req: AuthRequest, res: Response) => {
+  try {
+    const { archivoId } = req.params;
+
+    const archivo = await prisma.documentoArchivo.findUnique({
+      where: { id: parseInt(archivoId) }
+    });
+
+    if (!archivo) {
+      return res.status(404).json({ message: 'Archivo no encontrado' });
+    }
+
+    const fullPath = path.join(__dirname, '../../uploads/documentacion', archivo.documentacionId.toString(), archivo.rutaArchivo);
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ message: 'Archivo físico no encontrado' });
+    }
+
+    res.download(fullPath, archivo.nombreArchivo);
+  } catch (error) {
+    console.error('Error descargando archivo:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };

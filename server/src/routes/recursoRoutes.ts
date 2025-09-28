@@ -5,9 +5,10 @@ import {
   createRecurso,
   updateRecurso,
   deleteRecurso,
-  addDocumentToRecurso,
+  getRecursoDocumentacion,
+  assignDocumentacionToRecurso,
   updateRecursoDocumentacion,
-  removeDocumentFromRecurso,
+  deleteRecursoDocumentacion,
 } from '../controllers/recursoController';
 import { authenticateToken } from '../middleware/auth';
 
@@ -20,8 +21,11 @@ router.get('/:id', getRecurso);
 router.post('/', createRecurso);
 router.put('/:id', updateRecurso);
 router.delete('/:id', deleteRecurso);
-router.post('/:id/documentos', addDocumentToRecurso);
-router.put('/documentos/:recursoDocId', updateRecursoDocumentacion);
-router.delete('/documentos/:recursoDocId', removeDocumentFromRecurso);
+
+// Documentación de recursos
+router.get('/:id/documentacion', getRecursoDocumentacion);
+router.post('/:recursoId/documentacion/:documentacionId', assignDocumentacionToRecurso);
+router.put('/documentacion/:id', updateRecursoDocumentacion);
+router.delete('/documentacion/:id', deleteRecursoDocumentacion);
 
 export default router;

@@ -109,7 +109,8 @@ const ArchivoSubGrid: React.FC<ArchivoSubGridProps> = ({
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  const getFileIcon = (mimeType: string) => {
+  const getFileIcon = (mimeType: string | undefined) => {
+    if (!mimeType) return <File size={16} className="text-gray-500" />;
     if (mimeType.startsWith('image/')) return <Image size={16} className="text-blue-500" />;
     if (mimeType === 'application/pdf') return <FileText size={16} className="text-red-500" />;
     return <File size={16} className="text-gray-500" />;

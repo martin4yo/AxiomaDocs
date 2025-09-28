@@ -2,14 +2,11 @@ import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { uploadMultiple } from '../middleware/upload';
 import {
-  uploadDocumentacionArchivos,
-  uploadRecursoDocumentacionArchivos,
-  uploadEntidadDocumentacionArchivos,
+  uploadArchivos,
   getDocumentacionArchivos,
   getRecursoDocumentacionArchivos,
   getEntidadDocumentacionArchivos,
   downloadArchivo,
-  updateArchivo,
   deleteArchivo
 } from '../controllers/archivoController';
 
@@ -19,9 +16,9 @@ const router = Router();
 router.use(authenticateToken);
 
 // Upload archivos
-router.post('/documentacion/:id/upload', uploadMultiple, uploadDocumentacionArchivos);
-router.post('/recurso-documentacion/:id/upload', uploadMultiple, uploadRecursoDocumentacionArchivos);
-router.post('/entidad-documentacion/:id/upload', uploadMultiple, uploadEntidadDocumentacionArchivos);
+router.post('/documentacion/:id/upload', uploadMultiple, uploadArchivos);
+router.post('/recurso-documentacion/:id/upload', uploadMultiple, uploadArchivos);
+router.post('/entidad-documentacion/:id/upload', uploadMultiple, uploadArchivos);
 
 // Obtener archivos
 router.get('/documentacion/:id', getDocumentacionArchivos);
@@ -30,7 +27,6 @@ router.get('/entidad-documentacion/:id', getEntidadDocumentacionArchivos);
 
 // Operaciones sobre archivos individuales
 router.get('/:archivoId/download', downloadArchivo);
-router.put('/:archivoId', updateArchivo);
 router.delete('/:archivoId', deleteArchivo);
 
 export default router;

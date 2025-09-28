@@ -1,130 +1,49 @@
 import { Response } from 'express';
-import { Op } from 'sequelize';
-import { 
-  Entidad, 
-  EntidadDocumentacion, 
-  EntidadRecurso, 
-  Documentacion, 
-  Recurso, 
-  RecursoDocumentacion,
-  Estado 
-} from '../models';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
-import { isDocumentoUniversal, getFechasForAsignacion, parseFechaLocal } from '../utils/documentHelpers';
-
-// Función para calcular el estado crítico de una entidad
-const calculateEstadoCritico = (entidad: any): any => {
-  const estados: any[] = [];
-
-  // 1. Estados de documentos asignados a la entidad (EntidadDocumentacion)
-  if (entidad.entidadDocumentacion) {
-    for (const entDoc of entidad.entidadDocumentacion) {
-      if (entDoc.documentacion?.estado) {
-        estados.push(entDoc.documentacion.estado);
-      }
-    }
-  }
-
-  // 2. Estados de documentos de recursos asignados a la entidad
-  if (entidad.entidadRecurso) {
-    for (const entRec of entidad.entidadRecurso) {
-      if (entRec.recurso?.recursoDocumentacion) {
-        for (const recDoc of entRec.recurso.recursoDocumentacion) {
-          if (recDoc.estado) {
-            estados.push(recDoc.estado);
-          }
-        }
-      }
-    }
-  }
-
-  // Encontrar el estado con mayor nivel (más crítico)
-  if (estados.length === 0) return null;
-
-  return estados.reduce((maxEstado, estado) => {
-    if (!maxEstado || estado.nivel > maxEstado.nivel) {
-      return estado;
-    }
-    return maxEstado;
-  }, null);
-};
 
 export const getEntidades = async (req: AuthRequest, res: Response) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
-    const whereClause = search ? {
-      [Op.or]: [
-        { razonSocial: { [Op.like]: `%${search}%` } },
-        { cuit: { [Op.like]: `%${search}%` } },
+    // Build search filter
+    const searchFilter = search ? {
+      OR: [
+        { nombre: { contains: search.toString(), mode: 'insensitive' as const } },
+        { descripcion: { contains: search.toString(), mode: 'insensitive' as const } },
+        { email: { contains: search.toString(), mode: 'insensitive' as const } },
       ]
     } : {};
 
-    const { rows: entidades, count } = await Entidad.findAndCountAll({
-      where: whereClause,
-      order: [['razonSocial', 'ASC']],
-      limit: Number(limit),
-      offset,
-      include: [
-        {
-          model: EntidadDocumentacion,
-          as: 'entidadDocumentacion',
-          include: [
-            {
-              model: Documentacion,
-              as: 'documentacion',
-              include: [
-                {
-                  model: Estado,
-                  as: 'estado',
-                }
-              ]
+    const [entidades, count] = await Promise.all([
+      prisma.entidad.findMany({
+        where: searchFilter,
+        orderBy: { nombre: 'asc' },
+        take: Number(limit),
+        skip: offset,
+        include: {
+          estado: true,
+          entidadDocumentacion: {
+            include: {
+              documentacion: true,
+              estado: true
             }
-          ]
-        },
-        {
-          model: EntidadRecurso,
-          as: 'entidadRecurso',
-          include: [
-            {
-              model: Recurso,
-              as: 'recurso',
-              include: [
-                {
-                  model: RecursoDocumentacion,
-                  as: 'recursoDocumentacion',
-                  include: [
-                    {
-                      model: Documentacion,
-                      as: 'documentacion',
-                    },
-                    {
-                      model: Estado,
-                      as: 'estado',
-                    }
-                  ]
-                }
-              ]
+          },
+          entidadRecurso: {
+            include: {
+              recurso: true
             }
-          ]
+          }
         }
-      ]
-    });
-
-    // Calcular el estado crítico para cada entidad
-    const entidadesConEstadoCritico = entidades.map(entidad => {
-      const entidadPlain = entidad.toJSON();
-      const estadoCritico = calculateEstadoCritico(entidadPlain);
-
-      return {
-        ...entidadPlain,
-        estadoCritico: estadoCritico
-      };
-    });
+      }),
+      prisma.entidad.count({
+        where: searchFilter
+      })
+    ]);
 
     res.json({
-      entidades: entidadesConEstadoCritico,
+      entidades,
       pagination: {
         currentPage: Number(page),
         totalPages: Math.ceil(count / Number(limit)),
@@ -141,35 +60,22 @@ export const getEntidades = async (req: AuthRequest, res: Response) => {
 export const getEntidad = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const entidad = await Entidad.findByPk(id, {
-      include: [
-        {
-          model: EntidadDocumentacion,
-          as: 'entidadDocumentacion',
-          include: [
-            {
-              model: Documentacion,
-              as: 'documentacion',
-              include: [
-                {
-                  model: Estado,
-                  as: 'estado',
-                }
-              ]
-            }
-          ]
+    const entidad = await prisma.entidad.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        estado: true,
+        entidadDocumentacion: {
+          include: {
+            documentacion: true,
+            estado: true
+          }
         },
-        {
-          model: EntidadRecurso,
-          as: 'entidadRecurso',
-          include: [
-            {
-              model: Recurso,
-              as: 'recurso',
-            }
-          ]
+        entidadRecurso: {
+          include: {
+            recurso: true
+          }
         }
-      ]
+      }
     });
 
     if (!entidad) {
@@ -185,40 +91,52 @@ export const getEntidad = async (req: AuthRequest, res: Response) => {
 
 export const createEntidad = async (req: AuthRequest, res: Response) => {
   try {
-    const { razonSocial, cuit, domicilio, telefono, localidad, urlPlataformaDocumentacion } = req.body;
+    const {
+      nombre,
+      descripcion,
+      url,
+      contacto,
+      email,
+      telefono,
+      direccion,
+      fechaIngreso,
+      observaciones,
+      estadoId
+    } = req.body;
     const userId = req.user!.id;
 
-    const entidad = await Entidad.create({
-      razonSocial,
-      cuit,
-      domicilio,
-      telefono,
-      localidad,
-      urlPlataformaDocumentacion,
-      creadoPor: userId,
-      modificadoPor: userId,
+    // Verificar que el estado existe
+    const estado = await prisma.estado.findUnique({
+      where: { id: parseInt(estadoId) }
+    });
+
+    if (!estado) {
+      return res.status(400).json({ message: 'Estado no válido' });
+    }
+
+    const entidad = await prisma.entidad.create({
+      data: {
+        nombre,
+        descripcion,
+        url,
+        contacto,
+        email,
+        telefono,
+        direccion,
+        fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : null,
+        observaciones,
+        estadoId: parseInt(estadoId),
+        createdBy: userId,
+        updatedBy: userId,
+      },
+      include: {
+        estado: true
+      }
     });
 
     res.status(201).json(entidad);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creando entidad:', error);
-    
-    // Manejar error de CUIT duplicado
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ 
-        message: 'Ya existe una entidad con este CUIT' 
-      });
-    }
-    
-    // Manejar errores de validación
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map((err: any) => err.message);
-      return res.status(400).json({ 
-        message: 'Datos inválidos', 
-        errors: validationErrors 
-      });
-    }
-    
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
@@ -226,45 +144,65 @@ export const createEntidad = async (req: AuthRequest, res: Response) => {
 export const updateEntidad = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { razonSocial, cuit, domicilio, telefono, localidad, urlPlataformaDocumentacion } = req.body;
+    const {
+      nombre,
+      descripcion,
+      url,
+      contacto,
+      email,
+      telefono,
+      direccion,
+      fechaIngreso,
+      observaciones,
+      estadoId,
+      activo
+    } = req.body;
     const userId = req.user!.id;
 
-    const entidad = await Entidad.findByPk(id);
+    // Verificar que la entidad existe
+    const entidadExistente = await prisma.entidad.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!entidad) {
+    if (!entidadExistente) {
       return res.status(404).json({ message: 'Entidad no encontrada' });
     }
 
-    await entidad.update({
-      razonSocial,
-      cuit,
-      domicilio,
-      telefono,
-      localidad,
-      urlPlataformaDocumentacion,
-      modificadoPor: userId,
+    // Verificar que el estado existe si se proporciona
+    if (estadoId) {
+      const estado = await prisma.estado.findUnique({
+        where: { id: parseInt(estadoId) }
+      });
+
+      if (!estado) {
+        return res.status(400).json({ message: 'Estado no válido' });
+      }
+    }
+
+    const entidadActualizada = await prisma.entidad.update({
+      where: { id: parseInt(id) },
+      data: {
+        nombre,
+        descripcion,
+        url,
+        contacto,
+        email,
+        telefono,
+        direccion,
+        fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : null,
+        observaciones,
+        estadoId: estadoId ? parseInt(estadoId) : undefined,
+        activo: activo !== undefined ? activo : undefined,
+        updatedBy: userId,
+      },
+      include: {
+        estado: true
+      }
     });
 
-    res.json(entidad);
-  } catch (error: any) {
+    res.json(entidadActualizada);
+  } catch (error) {
     console.error('Error actualizando entidad:', error);
-    
-    // Manejar error de CUIT duplicado
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({ 
-        message: 'Ya existe una entidad con este CUIT' 
-      });
-    }
-    
-    // Manejar errores de validación
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map((err: any) => err.message);
-      return res.status(400).json({ 
-        message: 'Datos inválidos', 
-        errors: validationErrors 
-      });
-    }
-    
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
@@ -273,13 +211,18 @@ export const deleteEntidad = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const entidad = await Entidad.findByPk(id);
+    const entidad = await prisma.entidad.findUnique({
+      where: { id: parseInt(id) }
+    });
 
     if (!entidad) {
       return res.status(404).json({ message: 'Entidad no encontrada' });
     }
 
-    await entidad.destroy();
+    await prisma.entidad.delete({
+      where: { id: parseInt(id) }
+    });
+
     res.json({ message: 'Entidad eliminada correctamente' });
   } catch (error) {
     console.error('Error eliminando entidad:', error);
@@ -287,231 +230,348 @@ export const deleteEntidad = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const addDocumentacionToEntidad = async (req: AuthRequest, res: Response) => {
+// Documentación de entidades
+export const getEntidadDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { documentacionId, esInhabilitante, enviarPorMail, mailDestino, estadoId, fechaEmision, fechaTramitacion } = req.body;
+
+    const documentos = await prisma.entidadDocumentacion.findMany({
+      where: { entidadId: parseInt(id) },
+      include: {
+        documentacion: true,
+        estado: true,
+        entidad: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      },
+      orderBy: {
+        documentacion: {
+          nombre: 'asc'
+        }
+      }
+    });
+
+    res.json(documentos);
+  } catch (error) {
+    console.error('Error obteniendo documentación de la entidad:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+export const assignDocumentacionToEntidad = async (req: AuthRequest, res: Response) => {
+  try {
+    const { entidadId, documentacionId } = req.params;
+    const {
+      esInhabilitante,
+      notificarEmail,
+      fechaEmision,
+      fechaTramitacion,
+      fechaVencimiento,
+      observaciones,
+      estadoId
+    } = req.body;
     const userId = req.user!.id;
 
-    // Obtener la documentación para validar si es universal
-    const documentacion = await Documentacion.findByPk(documentacionId);
+    // Verificar que la entidad existe
+    const entidad = await prisma.entidad.findUnique({
+      where: { id: parseInt(entidadId) }
+    });
+
+    if (!entidad) {
+      return res.status(404).json({ message: 'Entidad no encontrada' });
+    }
+
+    // Verificar que la documentación existe
+    const documentacion = await prisma.documentacion.findUnique({
+      where: { id: parseInt(documentacionId) }
+    });
+
     if (!documentacion) {
       return res.status(404).json({ message: 'Documentación no encontrada' });
     }
 
-    // Determinar qué fechas usar (universales o específicas)
-    const fechasParaAsignacion = getFechasForAsignacion(documentacion, {
-      fechaEmision: fechaEmision ? new Date(fechaEmision) : undefined,
-      fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : undefined
-    });
-
-    const entidadDoc = await EntidadDocumentacion.create({
-      entidadId: Number(id),
-      documentacionId,
-      esInhabilitante,
-      enviarPorMail,
-      mailDestino,
-      fechaEmision: fechasParaAsignacion.fechaEmision ? new Date(fechasParaAsignacion.fechaEmision) : undefined,
-      fechaTramitacion: fechasParaAsignacion.fechaTramitacion ? new Date(fechasParaAsignacion.fechaTramitacion) : undefined,
-      fechaVencimiento: fechasParaAsignacion.fechaVencimiento ? new Date(fechasParaAsignacion.fechaVencimiento) : undefined,
-      creadoPor: userId,
-      modificadoPor: userId,
-    });
-
-    const result = await EntidadDocumentacion.findByPk(entidadDoc.id, {
-      include: [
-        {
-          model: Documentacion,
-          as: 'documentacion',
+    // Verificar si ya existe la asignación
+    const existingAssignment = await prisma.entidadDocumentacion.findUnique({
+      where: {
+        entidadId_documentacionId: {
+          entidadId: parseInt(entidadId),
+          documentacionId: parseInt(documentacionId)
         }
-      ]
+      }
     });
 
-    res.status(201).json(result);
+    if (existingAssignment) {
+      return res.status(400).json({ message: 'La documentación ya está asignada a esta entidad' });
+    }
+
+    const asignacion = await prisma.entidadDocumentacion.create({
+      data: {
+        entidadId: parseInt(entidadId),
+        documentacionId: parseInt(documentacionId),
+        esInhabilitante: Boolean(esInhabilitante),
+        notificarEmail: Boolean(notificarEmail),
+        fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : null,
+        fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+        observaciones,
+        estadoId: parseInt(estadoId),
+        createdBy: userId,
+        updatedBy: userId,
+      },
+      include: {
+        documentacion: true,
+        estado: true,
+        entidad: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json(asignacion);
   } catch (error) {
-    console.error('Error agregando documentación a la entidad:', error);
+    console.error('Error asignando documentación a entidad:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
 export const updateEntidadDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
-    const { entidadDocId } = req.params;
-    const { esInhabilitante, enviarPorMail, mailDestino, estadoId, fechaEmision, fechaTramitacion } = req.body;
+    const { id } = req.params;
+    const {
+      esInhabilitante,
+      notificarEmail,
+      fechaEmision,
+      fechaTramitacion,
+      fechaVencimiento,
+      observaciones,
+      estadoId
+    } = req.body;
     const userId = req.user!.id;
 
-    const entidadDoc = await EntidadDocumentacion.findByPk(entidadDocId, {
-      include: [
-        {
-          model: Documentacion,
-          as: 'documentacion',
-        }
-      ]
+    const asignacion = await prisma.entidadDocumentacion.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    if (!entidadDoc) {
-      return res.status(404).json({ message: 'Documentación de la entidad no encontrada' });
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación de documentación no encontrada' });
     }
 
-    // Verificar si el documento es universal (no se pueden editar fechas)
-    const esUniversal = isDocumentoUniversal(entidadDoc.documentacion!);
-    
-    if (esUniversal) {
-      // Si es universal, solo permitir cambiar propiedades de la entidad
-      await entidadDoc.update({
-        esInhabilitante,
-        enviarPorMail,
-        mailDestino,
-        modificadoPor: userId,
-      });
-    } else {
-      // Si no es universal, permitir editar fechas
-      const fechasParaAsignacion = getFechasForAsignacion(entidadDoc.documentacion!, {
-        fechaEmision: fechaEmision ? new Date(fechaEmision) : undefined,
-        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : undefined
-      });
-
-      await entidadDoc.update({
-        esInhabilitante,
-        enviarPorMail,
-        mailDestino,
-        fechaEmision: fechasParaAsignacion.fechaEmision || undefined,
-        fechaTramitacion: fechasParaAsignacion.fechaTramitacion || undefined,
-        fechaVencimiento: fechasParaAsignacion.fechaVencimiento || undefined,
-        modificadoPor: userId,
-      });
-    }
-
-    const result = await EntidadDocumentacion.findByPk(entidadDocId, {
-      include: [
-        {
-          model: Documentacion,
-          as: 'documentacion',
+    const asignacionActualizada = await prisma.entidadDocumentacion.update({
+      where: { id: parseInt(id) },
+      data: {
+        esInhabilitante: esInhabilitante !== undefined ? Boolean(esInhabilitante) : undefined,
+        notificarEmail: notificarEmail !== undefined ? Boolean(notificarEmail) : undefined,
+        fechaEmision: fechaEmision ? new Date(fechaEmision) : null,
+        fechaTramitacion: fechaTramitacion ? new Date(fechaTramitacion) : null,
+        fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+        observaciones,
+        estadoId: estadoId ? parseInt(estadoId) : undefined,
+        updatedBy: userId,
+      },
+      include: {
+        documentacion: true,
+        estado: true,
+        entidad: {
+          select: {
+            id: true,
+            nombre: true
+          }
         }
-      ]
+      }
     });
 
-    res.json(result);
+    res.json(asignacionActualizada);
   } catch (error) {
     console.error('Error actualizando documentación de la entidad:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-export const removeDocumentacionFromEntidad = async (req: AuthRequest, res: Response) => {
+export const deleteEntidadDocumentacion = async (req: AuthRequest, res: Response) => {
   try {
-    const { entidadDocId } = req.params;
+    const { id } = req.params;
 
-    const entidadDoc = await EntidadDocumentacion.findByPk(entidadDocId);
+    const asignacion = await prisma.entidadDocumentacion.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!entidadDoc) {
-      return res.status(404).json({ message: 'Documentación de la entidad no encontrada' });
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación de documentación no encontrada' });
     }
 
-    await entidadDoc.destroy();
-    res.json({ message: 'Documentación removida de la entidad correctamente' });
+    await prisma.entidadDocumentacion.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ message: 'Asignación de documentación eliminada correctamente' });
   } catch (error) {
-    console.error('Error removiendo documentación de la entidad:', error);
+    console.error('Error eliminando documentación de la entidad:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-export const addRecursoToEntidad = async (req: AuthRequest, res: Response) => {
+// Recursos de entidades
+export const getEntidadRecursos = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { recursoId, fechaInicio, fechaFin } = req.body;
+
+    const recursos = await prisma.entidadRecurso.findMany({
+      where: { entidadId: parseInt(id) },
+      include: {
+        recurso: true,
+        entidad: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      },
+      orderBy: {
+        recurso: {
+          apellido: 'asc'
+        }
+      }
+    });
+
+    res.json(recursos);
+  } catch (error) {
+    console.error('Error obteniendo recursos de la entidad:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+};
+
+export const assignRecursoToEntidad = async (req: AuthRequest, res: Response) => {
+  try {
+    const { entidadId, recursoId } = req.params;
+    const { fechaInicio, fechaFin, observaciones } = req.body;
     const userId = req.user!.id;
 
-    // Validar fechas - usar fecha local y permitir fechaFin nula
-    const fechaInicioValid = fechaInicio && !isNaN(Date.parse(fechaInicio)) ? parseFechaLocal(fechaInicio) : new Date();
-    const fechaFinValid = fechaFin && !isNaN(Date.parse(fechaFin)) ? parseFechaLocal(fechaFin) : undefined;
-
-    const entidadRecurso = await EntidadRecurso.create({
-      entidadId: Number(id),
-      recursoId,
-      fechaInicio: fechaInicioValid,
-      fechaFin: fechaFinValid,
-      activo: true,
-      creadoPor: userId,
-      modificadoPor: userId,
+    // Verificar que la entidad existe
+    const entidad = await prisma.entidad.findUnique({
+      where: { id: parseInt(entidadId) }
     });
 
-    const result = await EntidadRecurso.findByPk(entidadRecurso.id, {
-      include: [
-        {
-          model: Recurso,
-          as: 'recurso',
+    if (!entidad) {
+      return res.status(404).json({ message: 'Entidad no encontrada' });
+    }
+
+    // Verificar que el recurso existe
+    const recurso = await prisma.recurso.findUnique({
+      where: { id: parseInt(recursoId) }
+    });
+
+    if (!recurso) {
+      return res.status(404).json({ message: 'Recurso no encontrado' });
+    }
+
+    // Verificar si ya existe la asignación
+    const existingAssignment = await prisma.entidadRecurso.findUnique({
+      where: {
+        entidadId_recursoId: {
+          entidadId: parseInt(entidadId),
+          recursoId: parseInt(recursoId)
         }
-      ]
+      }
     });
 
-    res.status(201).json(result);
+    if (existingAssignment) {
+      return res.status(400).json({ message: 'El recurso ya está asignado a esta entidad' });
+    }
+
+    const asignacion = await prisma.entidadRecurso.create({
+      data: {
+        entidadId: parseInt(entidadId),
+        recursoId: parseInt(recursoId),
+        fechaInicio: fechaInicio ? new Date(fechaInicio) : null,
+        fechaFin: fechaFin ? new Date(fechaFin) : null,
+        observaciones,
+        createdBy: userId,
+        updatedBy: userId,
+      },
+      include: {
+        recurso: true,
+        entidad: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json(asignacion);
   } catch (error) {
-    console.error('Error agregando recurso a la entidad:', error);
+    console.error('Error asignando recurso a entidad:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
 export const updateEntidadRecurso = async (req: AuthRequest, res: Response) => {
   try {
-    const { entidadRecursoId } = req.params;
-    const { fechaInicio, fechaFin, activo } = req.body;
+    const { id } = req.params;
+    const { fechaInicio, fechaFin, observaciones, activo } = req.body;
     const userId = req.user!.id;
 
-    const entidadRecurso = await EntidadRecurso.findByPk(entidadRecursoId);
-
-    if (!entidadRecurso) {
-      return res.status(404).json({ message: 'Recurso de la entidad no encontrado' });
-    }
-
-    // Validar fechas - usar fecha local y permitir fechaFin nula
-    const updateData: any = {
-      activo,
-      modificadoPor: userId,
-    };
-
-    if (fechaInicio && !isNaN(Date.parse(fechaInicio))) {
-      updateData.fechaInicio = parseFechaLocal(fechaInicio);
-    }
-
-    if (fechaFin === null || fechaFin === '') {
-      updateData.fechaFin = null;
-    } else if (fechaFin && !isNaN(Date.parse(fechaFin))) {
-      updateData.fechaFin = parseFechaLocal(fechaFin);
-    }
-
-    await entidadRecurso.update(updateData);
-
-    const result = await EntidadRecurso.findByPk(entidadRecursoId, {
-      include: [
-        {
-          model: Recurso,
-          as: 'recurso',
-        }
-      ]
+    const asignacion = await prisma.entidadRecurso.findUnique({
+      where: { id: parseInt(id) }
     });
 
-    res.json(result);
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación de recurso no encontrada' });
+    }
+
+    const asignacionActualizada = await prisma.entidadRecurso.update({
+      where: { id: parseInt(id) },
+      data: {
+        fechaInicio: fechaInicio ? new Date(fechaInicio) : null,
+        fechaFin: fechaFin ? new Date(fechaFin) : null,
+        observaciones,
+        activo: activo !== undefined ? activo : undefined,
+        updatedBy: userId,
+      },
+      include: {
+        recurso: true,
+        entidad: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      }
+    });
+
+    res.json(asignacionActualizada);
   } catch (error) {
-    console.error('Error actualizando recurso de la entidad:', error);
+    console.error('Error actualizando asignación de recurso:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
-export const removeRecursoFromEntidad = async (req: AuthRequest, res: Response) => {
+export const deleteEntidadRecurso = async (req: AuthRequest, res: Response) => {
   try {
-    const { entidadRecursoId } = req.params;
+    const { id } = req.params;
 
-    const entidadRecurso = await EntidadRecurso.findByPk(entidadRecursoId);
+    const asignacion = await prisma.entidadRecurso.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-    if (!entidadRecurso) {
-      return res.status(404).json({ message: 'Recurso de la entidad no encontrado' });
+    if (!asignacion) {
+      return res.status(404).json({ message: 'Asignación de recurso no encontrada' });
     }
 
-    await entidadRecurso.destroy();
-    res.json({ message: 'Recurso removido de la entidad correctamente' });
+    await prisma.entidadRecurso.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ message: 'Asignación de recurso eliminada correctamente' });
   } catch (error) {
-    console.error('Error removiendo recurso de la entidad:', error);
+    console.error('Error eliminando asignación de recurso:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };

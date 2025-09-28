@@ -100,7 +100,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="pt-6 mt-6">
+      <div className="pt-8 mt-8">
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">

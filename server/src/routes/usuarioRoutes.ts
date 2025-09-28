@@ -5,8 +5,8 @@ import {
   createUsuario,
   updateUsuario,
   deleteUsuario,
-  toggleUsuarioStatus,
-  changeOwnPassword
+  changePassword,
+  getUsuarioStats
 } from '../controllers/usuarioController';
 import { authenticateToken } from '../middleware/auth';
 
@@ -23,7 +23,7 @@ router.put('/:id', updateUsuario);
 router.delete('/:id', deleteUsuario);
 
 // Rutas especiales
-router.patch('/:id/toggle-status', toggleUsuarioStatus);
-router.post('/change-password', changeOwnPassword);
+router.get('/stats/overview', getUsuarioStats);
+router.post('/:id/change-password', changePassword);
 
 export default router;

@@ -136,7 +136,7 @@ const Usuarios: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-6 mt-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-8 mt-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <Shield className="w-8 h-8 mr-2 text-primary-600" />

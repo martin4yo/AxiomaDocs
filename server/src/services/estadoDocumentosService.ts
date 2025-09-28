@@ -1,11 +1,4 @@
-import { Op } from 'sequelize';
-import RecursoDocumentacion from '../models/RecursoDocumentacion';
-import EntidadDocumentacion from '../models/EntidadDocumentacion';
-import Estado from '../models/Estado';
-import Documentacion from '../models/Documentacion';
-import Recurso from '../models/Recurso';
-import Entidad from '../models/Entidad';
-import EstadoDocumentoLog from '../models/EstadoDocumentoLog';
+import prisma from '../lib/prisma';
 
 interface UpdateResult {
   totalRevisados: number;
@@ -38,8 +31,8 @@ class EstadoDocumentosService {
 
     try {
       // Obtener todos los estados disponibles
-      const estados = await Estado.findAll();
-      const estadoMap = new Map(estados.map(e => [e.codigo, e]));
+      const estados = await prisma.estado.findMany();
+      const estadoMap = new Map(estados.map(e => [e.nombre, e]));
 
       // Estados necesarios por código
       const estadoVigente = estadoMap.get('VIGENTE');
@@ -55,12 +48,12 @@ class EstadoDocumentosService {
       const estadosMap = new Map(estados.map(e => [e.id, e]));
 
       // 1. Actualizar RecursoDocumentacion
-      const recursoDocs = await RecursoDocumentacion.findAll({
-        include: [
-          { model: Documentacion, as: 'documentacion' },
-          { model: Recurso, as: 'recurso' },
-          { model: Estado, as: 'estado' }
-        ]
+      const recursoDocs = await prisma.recursoDocumentacion.findMany({
+        include: {
+          documentacion: true,
+          recurso: true,
+          estado: true
+        }
       });
 
       for (const doc of recursoDocs) {
@@ -85,14 +78,14 @@ class EstadoDocumentosService {
       }
 
       // 2. Actualizar documentos universales en la tabla Documentacion
-      const universalDocs = await Documentacion.findAll({
+      const universalDocs = await prisma.documentacion.findMany({
         where: {
           esUniversal: true,
-          fechaVencimiento: { [Op.ne]: null } as any // Solo documentos con fecha de vencimiento
+          fechaVencimiento: { not: null }
         },
-        include: [
-          { model: Estado, as: 'estado', foreignKey: 'estadoVencimientoId' }
-        ]
+        include: {
+          estado: true
+        }
       });
 
       console.log(`[DEBUG] Encontrados ${universalDocs.length} documentos universales para evaluar`);
@@ -103,8 +96,7 @@ class EstadoDocumentosService {
 
         // Para documentos universales, usamos el estado del documento directamente
         const docWithState = {
-          ...doc.toJSON(),
-          estado: (doc as any).estado, // El estado está en la relación estado
+          ...doc,
           documentacion: doc // Para mantener compatibilidad con la función evaluarYActualizarEstado
         };
 
@@ -148,9 +140,9 @@ class EstadoDocumentosService {
   private async evaluarYActualizarEstado(
     documento: any,
     tipo: 'recurso' | 'entidad',
-    estadoPorVencer: Estado,
-    estadoVencido: Estado,
-    estadosMap: Map<number, Estado>,
+    estadoPorVencer: any,
+    estadoVencido: any,
+    estadosMap: Map<number, any>,
     tipoActualizacion: 'manual' | 'automatica' = 'automatica'
   ): Promise<{ actualizado: boolean; detalle?: any; error?: boolean }> {
     try {
@@ -164,7 +156,7 @@ class EstadoDocumentosService {
       const documentacion = documento.documentacion;
 
       // Debug logging
-      console.log(`[DEBUG] Evaluando documento ${documentacion?.codigo || 'SIN_CODIGO'} - ID: ${documento.id}`);
+      console.log(`[DEBUG] Evaluando documento ${documentacion?.nombre || 'SIN_NOMBRE'} - ID: ${documento.id}`);
       console.log(`[DEBUG] Fecha vencimiento: ${fechaVencimiento ? fechaVencimiento.toISOString().split('T')[0] : 'null'}`);
       console.log(`[DEBUG] Hoy: ${hoy.toISOString().split('T')[0]}`);
       console.log(`[DEBUG] Estado actual: ${estadoActual?.nombre || 'Sin estado'} (ID: ${estadoActual?.id || 'null'})`);
@@ -222,19 +214,24 @@ class EstadoDocumentosService {
 
       // Si hay cambio de estado, actualizar
       if (nuevoEstadoId) {
-        await documento.update({ estadoId: nuevoEstadoId });
+        await prisma.recursoDocumentacion.update({
+          where: { id: documento.id },
+          data: { estadoId: nuevoEstadoId }
+        });
 
         // Crear log de auditoría
-        await EstadoDocumentoLog.create({
-          tipoDocumento: tipo,
-          documentacionId: documento.documentacionId,
-          recursoId: tipo === 'recurso' ? documento.recursoId : undefined,
-          entidadId: tipo === 'entidad' ? documento.entidadId : undefined,
-          estadoAnteriorId: estadoActual?.id,
-          estadoNuevoId: nuevoEstadoId,
-          razon,
-          usuarioId: this.usuarioId,
-          tipoActualizacion
+        await prisma.estadoDocumentoLog.create({
+          data: {
+            tipoDocumento: tipo,
+            documentacionId: documento.documentacionId,
+            recursoId: tipo === 'recurso' ? documento.recursoId : undefined,
+            entidadId: tipo === 'entidad' ? documento.entidadId : undefined,
+            estadoAnteriorId: estadoActual?.id,
+            estadoNuevoId: nuevoEstadoId,
+            razon,
+            usuarioId: this.usuarioId,
+            tipoActualizacion
+          }
         });
 
         const detalle = {
@@ -273,62 +270,77 @@ class EstadoDocumentosService {
     hace7Dias.setDate(hace7Dias.getDate() - 7);
 
     // Estadísticas de RecursoDocumentacion
-    const recursoStats = await RecursoDocumentacion.findAll({
-      attributes: [
-        'estadoId',
-        [sequelize.fn('COUNT', sequelize.col('RecursoDocumentacion.id')), 'count']
-      ],
-      include: [{ model: Estado, as: 'estado', attributes: ['nombre'] }],
-      group: ['estadoId', 'estado.id', 'estado.nombre']
+    const recursoStats = await prisma.recursoDocumentacion.groupBy({
+      by: ['estadoId'],
+      _count: {
+        id: true
+      },
+      where: {
+        estado: {
+          isNot: null
+        }
+      }
+    });
+
+    // Obtener nombres de estados para las estadísticas
+    const estados = await prisma.estado.findMany();
+    const estadosMap = new Map(estados.map(e => [e.id, e.nombre]));
+
+    const recursoStatsFormatted: { [key: string]: number } = {};
+    recursoStats.forEach(stat => {
+      const estadoNombre = estadosMap.get(stat.estadoId) || 'Sin estado';
+      recursoStatsFormatted[estadoNombre] = stat._count.id;
     });
 
     // Nota: EntidadDocumentacion no tiene estados, por lo tanto no hay estadísticas de estado
-    const entidadStats: any[] = [];
+    const entidadStats: { [key: string]: number } = {};
 
     // Documentos próximos a vencer
-    const proximosVencer = await RecursoDocumentacion.findAll({
+    const proximosVencer = await prisma.recursoDocumentacion.findMany({
       where: {
         fechaVencimiento: {
-          [Op.between]: [hoy, en7Dias]
+          gte: hoy,
+          lte: en7Dias
         }
       },
-      include: [
-        { model: Recurso, as: 'recurso', attributes: ['nombre', 'apellido'] },
-        { model: Documentacion, as: 'documentacion', attributes: ['descripcion'] }
-      ],
-      limit: 10,
-      order: [['fechaVencimiento', 'ASC']]
+      include: {
+        recurso: {
+          select: { nombre: true, apellido: true }
+        },
+        documentacion: {
+          select: { descripcion: true }
+        }
+      },
+      take: 10,
+      orderBy: { fechaVencimiento: 'asc' }
     });
 
     // Documentos recién vencidos
-    const recienVencidos = await RecursoDocumentacion.findAll({
+    const recienVencidos = await prisma.recursoDocumentacion.findMany({
       where: {
         fechaVencimiento: {
-          [Op.between]: [hace7Dias, hoy]
+          gte: hace7Dias,
+          lte: hoy
         }
       },
-      include: [
-        { model: Recurso, as: 'recurso', attributes: ['nombre', 'apellido'] },
-        { model: Documentacion, as: 'documentacion', attributes: ['descripcion'] }
-      ],
-      limit: 10,
-      order: [['fechaVencimiento', 'DESC']]
+      include: {
+        recurso: {
+          select: { nombre: true, apellido: true }
+        },
+        documentacion: {
+          select: { descripcion: true }
+        }
+      },
+      take: 10,
+      orderBy: { fechaVencimiento: 'desc' }
     });
 
     return {
-      recursoDocumentacion: this.formatStats(recursoStats),
-      entidadDocumentacion: this.formatStats(entidadStats),
+      recursoDocumentacion: recursoStatsFormatted,
+      entidadDocumentacion: entidadStats,
       proximosVencer: proximosVencer.map(this.formatDocumento),
       recienVencidos: recienVencidos.map(this.formatDocumento)
     };
-  }
-
-  private formatStats(stats: any[]): { [key: string]: number } {
-    const result: { [key: string]: number } = {};
-    stats.forEach(stat => {
-      result[stat.Estado?.nombre || 'Sin estado'] = parseInt(stat.dataValues.count);
-    });
-    return result;
   }
 
   private formatDocumento(doc: any): any {
@@ -345,9 +357,9 @@ class EstadoDocumentosService {
    */
   private async evaluarYActualizarEstadoUniversal(
     documento: any,
-    estadoPorVencer: Estado,
-    estadoVencido: Estado,
-    estadosMap: Map<number, Estado>,
+    estadoPorVencer: any,
+    estadoVencido: any,
+    estadosMap: Map<number, any>,
     tipoActualizacion: 'manual' | 'automatica' = 'automatica'
   ): Promise<{ actualizado: boolean; detalle?: any; error?: boolean }> {
     try {
@@ -359,7 +371,7 @@ class EstadoDocumentosService {
       const estadoActual = documento.estado;
 
       // Debug logging
-      console.log(`[DEBUG UNIVERSAL] Evaluando documento universal ${documento.codigo} - ID: ${documento.id}`);
+      console.log(`[DEBUG UNIVERSAL] Evaluando documento universal ${documento.nombre} - ID: ${documento.id}`);
       console.log(`[DEBUG UNIVERSAL] Fecha vencimiento: ${fechaVencimiento ? fechaVencimiento.toISOString().split('T')[0] : 'null'}`);
       console.log(`[DEBUG UNIVERSAL] Hoy: ${hoy.toISOString().split('T')[0]}`);
       console.log(`[DEBUG UNIVERSAL] Estado actual: ${estadoActual?.nombre || 'Sin estado'} (ID: ${estadoActual?.id || 'null'})`);
@@ -412,28 +424,27 @@ class EstadoDocumentosService {
 
       // Si hay cambio de estado, actualizar el documento universal
       if (nuevoEstadoId) {
-        // Para documentos universales, actualizamos AMBOS campos de estado en la tabla documentacion
-        // estadoVencimientoId es para el vencimiento automático
-        // estadoId es el estado general que se muestra en la interfaz
-        await Documentacion.update(
-          {
-            estadoVencimientoId: nuevoEstadoId,
-            estadoId: nuevoEstadoId // También actualizar el estado general
-          },
-          { where: { id: documento.id } }
-        );
+        // Para documentos universales, actualizamos el estado general
+        await prisma.documentacion.update({
+          where: { id: documento.id },
+          data: {
+            estadoId: nuevoEstadoId
+          }
+        });
 
-        console.log(`[DEBUG UNIVERSAL] Estado actualizado en base de datos (ambos campos: estadoId y estadoVencimientoId)`);
+        console.log(`[DEBUG UNIVERSAL] Estado actualizado en base de datos`);
 
         // Crear log de auditoría (usando 'recurso' como workaround temporal para enum)
-        await EstadoDocumentoLog.create({
-          tipoDocumento: 'recurso', // Temporal: usar valor existente del enum
-          documentacionId: documento.id,
-          estadoAnteriorId: estadoActual?.id,
-          estadoNuevoId: nuevoEstadoId,
-          razon: `[UNIVERSAL] ${razon}`, // Marcar como universal en la razón
-          usuarioId: this.usuarioId,
-          tipoActualizacion
+        await prisma.estadoDocumentoLog.create({
+          data: {
+            tipoDocumento: 'recurso', // Temporal: usar valor existente del enum
+            documentacionId: documento.id,
+            estadoAnteriorId: estadoActual?.id,
+            estadoNuevoId: nuevoEstadoId,
+            razon: `[UNIVERSAL] ${razon}`, // Marcar como universal en la razón
+            usuarioId: this.usuarioId,
+            tipoActualizacion
+          }
         });
 
         const detalle = {
@@ -455,8 +466,5 @@ class EstadoDocumentosService {
     }
   }
 }
-
-// Importar sequelize después de definir la clase para evitar problemas de dependencias circulares
-import sequelize from '../models/database';
 
 export default new EstadoDocumentosService();

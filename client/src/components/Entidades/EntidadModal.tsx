@@ -17,6 +17,7 @@ interface EntidadForm {
   domicilio?: string;
   telefono?: string;
   localidad?: string;
+  email?: string;
   urlPlataformaDocumentacion?: string;
 }
 
@@ -43,6 +44,7 @@ const EntidadModal: React.FC<EntidadModalProps> = ({
           domicilio: entidad.domicilio || '',
           telefono: entidad.telefono || '',
           localidad: entidad.localidad || '',
+          email: entidad.email || '',
           urlPlataformaDocumentacion: entidad.urlPlataformaDocumentacion || '',
         });
       } else {
@@ -52,6 +54,7 @@ const EntidadModal: React.FC<EntidadModalProps> = ({
           domicilio: '',
           telefono: '',
           localidad: '',
+          email: '',
           urlPlataformaDocumentacion: '',
         });
       }
@@ -149,6 +152,18 @@ const EntidadModal: React.FC<EntidadModalProps> = ({
               type="text"
               className="input w-full"
               placeholder="Ciudad o localidad"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email para Documentación
+            </label>
+            <input
+              {...register('email')}
+              type="email"
+              className="input w-full"
+              placeholder="Email donde enviar la documentación"
             />
           </div>
 

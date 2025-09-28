@@ -1,11 +1,11 @@
 import { Response } from 'express';
-import { Estado } from '../models';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth';
 
 export const getEstados = async (req: AuthRequest, res: Response) => {
   try {
-    const estados = await Estado.findAll({
-      order: [['nombre', 'ASC']],
+    const estados = await prisma.estado.findMany({
+      orderBy: { nombre: 'asc' },
     });
     res.json(estados);
   } catch (error) {
@@ -17,7 +17,9 @@ export const getEstados = async (req: AuthRequest, res: Response) => {
 export const getEstado = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const estado = await Estado.findByPk(id);
+    const estado = await prisma.estado.findUnique({
+      where: { id: parseInt(id) },
+    });
 
     if (!estado) {
       return res.status(404).json({ message: 'Estado no encontrado' });
@@ -35,13 +37,15 @@ export const createEstado = async (req: AuthRequest, res: Response) => {
     const { nombre, color, nivel, descripcion } = req.body;
     const userId = req.user!.id;
 
-    const estado = await Estado.create({
-      nombre,
-      color,
-      nivel: nivel || 1,
-      descripcion,
-      creadoPor: userId,
-      modificadoPor: userId,
+    const estado = await prisma.estado.create({
+      data: {
+        nombre,
+        color,
+        nivel: nivel || 1,
+        descripcion,
+        createdBy: userId,
+        updatedBy: userId,
+      }
     });
 
     res.status(201).json(estado);
@@ -57,21 +61,26 @@ export const updateEstado = async (req: AuthRequest, res: Response) => {
     const { nombre, color, nivel, descripcion } = req.body;
     const userId = req.user!.id;
 
-    const estado = await Estado.findByPk(id);
+    const estado = await prisma.estado.findUnique({
+      where: { id: parseInt(id) },
+    });
 
     if (!estado) {
       return res.status(404).json({ message: 'Estado no encontrado' });
     }
 
-    await estado.update({
-      nombre,
-      color,
-      nivel: nivel || 1,
-      descripcion,
-      modificadoPor: userId,
+    const updatedEstado = await prisma.estado.update({
+      where: { id: parseInt(id) },
+      data: {
+        nombre,
+        color,
+        nivel: nivel || 1,
+        descripcion,
+        updatedBy: userId,
+      }
     });
 
-    res.json(estado);
+    res.json(updatedEstado);
   } catch (error) {
     console.error('Error actualizando estado:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
@@ -82,13 +91,18 @@ export const deleteEstado = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const estado = await Estado.findByPk(id);
+    const estado = await prisma.estado.findUnique({
+      where: { id: parseInt(id) },
+    });
 
     if (!estado) {
       return res.status(404).json({ message: 'Estado no encontrado' });
     }
 
-    await estado.destroy();
+    await prisma.estado.delete({
+      where: { id: parseInt(id) },
+    });
+
     res.json({ message: 'Estado eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando estado:', error);

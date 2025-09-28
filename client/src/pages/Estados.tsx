@@ -91,7 +91,7 @@ const Estados: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center pt-6 mt-6">
+      <div className="flex justify-between items-center pt-8 mt-8">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <Flag className="h-8 w-8 mr-3 text-amber-600" />
           Estados
