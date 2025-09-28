@@ -46,7 +46,9 @@
       "Bash(ts-node:*)",
       "Bash(npx ts-node:*)",
       "Bash(npx prisma db push:*)",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
