@@ -25,7 +25,7 @@ import { estadosService } from '../services/estados';
 import { entidadesService } from '../services/entidades';
 import { documentacionService } from '../services/documentacion';
 import { recursosService } from '../services/recursos';
-import ExportButtons from '../components/common/ExportButtons';
+import ExportButtons from '../components/Common/ExportButtons';
 import ArchivoSubGrid from '../components/Archivos/ArchivoSubGrid';
 
 const GestionDocumentos: React.FC = () => {

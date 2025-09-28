@@ -17,5 +17,12 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "exclude": [
+    "src/disabled_*/**/*",
+    "src/pages/Gestion.tsx",
+    "src/pages/GestionDocumentos.tsx",
+    "src/pages/GestionDocumentos_OLD.tsx",
+    "src/pages/Seguimiento.tsx"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

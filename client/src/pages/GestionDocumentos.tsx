@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import {
@@ -10,22 +10,16 @@ import {
   ChevronDown,
   ChevronRight,
   Search,
-  Filter,
   Send,
   Clock,
   CheckCircle,
   Edit,
-  User,
   Mail,
-  Globe,
-  X
+  Globe
 } from 'lucide-react';
 
 import documentosService, {
-  DocumentoConEstadoCritico,
-  DocumentosFiltros,
-  RecursoAsignado,
-  EntidadDestino
+  DocumentosFiltros
 } from '../services/documentos';
 
 const GestionDocumentos: React.FC = () => {

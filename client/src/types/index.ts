@@ -35,6 +35,10 @@ export interface Recurso {
   estadoId: number;
   activo: boolean;
   estado?: Estado;
+  // Virtual properties for frontend
+  cuil?: string;
+  localidad?: string;
+  fechaAlta?: string;
   recursoDocumentacion?: RecursoDocumentacion[];
   entidadRecurso?: EntidadRecurso[];
   createdAt: string;
@@ -55,7 +59,11 @@ export interface Documentacion {
   fechaEmision?: string;
   fechaTramitacion?: string;
   fechaVencimiento?: string;
+  // Virtual properties for frontend
+  esObligatorio?: boolean;
+  estadoVencimientoId?: number;
   recursoDocumentacion?: RecursoDocumentacion[];
+  entidadDocumentacion?: EntidadDocumentacion[];
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +82,12 @@ export interface Entidad {
   estadoId: number;
   activo: boolean;
   estado?: Estado;
+  // Virtual properties for frontend
+  razonSocial?: string;
+  cuit?: string;
+  domicilio?: string;
+  localidad?: string;
+  urlPlataformaDocumentacion?: string;
   entidadDocumentacion?: EntidadDocumentacion[];
   entidadRecurso?: EntidadRecurso[];
   estadoCritico?: Estado;
@@ -168,4 +182,54 @@ export interface DocumentoArchivo {
     apellido: string;
     username: string;
   };
+}
+
+// Types for new modules
+export interface DocumentoConEstadoCritico {
+  id: number;
+  nombre: string;
+  estadoCritico: Estado;
+  proximosVencimientos: number;
+}
+
+export interface RecursoAsignado {
+  id: number;
+  recursoId: number;
+  nombre: string;
+  apellido: string;
+  fechaEmision?: string;
+  fechaTramitacion?: string;
+  fechaVencimiento?: string;
+  estadoId?: number;
+  estado?: Estado;
+}
+
+export interface EntidadDestino {
+  id: number;
+  nombre: string;
+  email?: string;
+}
+
+export interface EntidadEnvio {
+  id: number;
+  entidadId: number;
+  documentoId: number;
+  fechaEnvio: string;
+  estadoEnvio: 'pendiente' | 'enviado' | 'recibido';
+  observaciones?: string;
+  // Virtual properties for frontend compatibility
+  recursoNombre?: string;
+  recursoId?: number;
+}
+
+export interface SeguimientoFiltros {
+  estadoEnvio?: 'pendiente' | 'enviado' | 'recibido';
+  search?: string;
+}
+
+export interface UpdateRecursoAsignadoData {
+  fechaEmision?: string;
+  fechaTramitacion?: string;
+  fechaVencimiento?: string;
+  estadoId?: number;
 }

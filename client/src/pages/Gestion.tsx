@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, Users, Building2, Calendar, AlertTriangle, Plus, ClipboardList, Edit, Paperclip, X, Filter } from 'lucide-react';
-import { documentosService, DashboardStats } from '../services/documentos';
+import { documentosService } from '../services/documentos';
 import { estadosService } from '../services/estados';
 import { formatDateLocal } from '../utils/dateUtils';
 import ArchivoSubGrid from '../components/Archivos/ArchivoSubGrid';
 import EventoSubGrid from '../components/Eventos/EventoSubGrid';
 import EditarDocumentoModal from '../components/Documentos/EditarDocumentoModal';
-import { Estado } from '../types';
 
 type CategoriaActiva = 'universales' | 'porRecurso' | 'porEntidad' | null;
 

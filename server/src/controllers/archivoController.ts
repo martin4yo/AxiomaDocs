@@ -322,7 +322,16 @@ export const deleteArchivo = async (req: AuthRequest, res: Response) => {
     }
 
     // Eliminar archivo físico si existe
-    const fullPath = path.join(__dirname, '../../uploads/documentacion', archivo.documentacionId.toString(), archivo.rutaArchivo);
+    let uploadDir = 'uploads/';
+    if (archivo.documentacionId) {
+      uploadDir += `documentacion/${archivo.documentacionId}`;
+    } else if (archivo.recursoDocumentacionId) {
+      uploadDir += `recurso-documentacion/${archivo.recursoDocumentacionId}`;
+    } else if (archivo.entidadDocumentacionId) {
+      uploadDir += `entidad-documentacion/${archivo.entidadDocumentacionId}`;
+    }
+
+    const fullPath = path.join(__dirname, '../../', uploadDir, archivo.rutaArchivo);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
     }
@@ -352,7 +361,16 @@ export const downloadArchivo = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Archivo no encontrado' });
     }
 
-    const fullPath = path.join(__dirname, '../../uploads/documentacion', archivo.documentacionId.toString(), archivo.rutaArchivo);
+    let uploadDir = 'uploads/';
+    if (archivo.documentacionId) {
+      uploadDir += `documentacion/${archivo.documentacionId}`;
+    } else if (archivo.recursoDocumentacionId) {
+      uploadDir += `recurso-documentacion/${archivo.recursoDocumentacionId}`;
+    } else if (archivo.entidadDocumentacionId) {
+      uploadDir += `entidad-documentacion/${archivo.entidadDocumentacionId}`;
+    }
+
+    const fullPath = path.join(__dirname, '../../', uploadDir, archivo.rutaArchivo);
 
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ message: 'Archivo físico no encontrado' });

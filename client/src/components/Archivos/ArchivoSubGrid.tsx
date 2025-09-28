@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Download, Edit2, Trash2, FileText, Image, File, Eye } from 'lucide-react';
+import { Plus, Download, Edit2, Trash2, FileText, Image, File } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DocumentoArchivo } from '../../types';
 import ArchivoModal from './ArchivoModal';
@@ -107,7 +107,7 @@ const ArchivoSubGrid: React.FC<ArchivoSubGridProps> = ({
   const [isUploadLoading, setIsUploadLoading] = useState(false);
   const [isEditLoading, setIsEditLoading] = useState(false);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5000/api';
 
   const getFileIcon = (mimeType: string | undefined) => {
     if (!mimeType) return <File size={16} className="text-gray-500" />;

@@ -210,7 +210,7 @@ const RecursoDocumentoModal: React.FC<RecursoDocumentoModalProps> = ({
               <p><strong>CUIL:</strong> {selectedRecurso.cuil || 'No especificado'}</p>
               <p><strong>Teléfono:</strong> {selectedRecurso.telefono || 'No especificado'}</p>
               <p><strong>Localidad:</strong> {selectedRecurso.localidad || 'No especificado'}</p>
-              <p><strong>Fecha Alta:</strong> {new Date(selectedRecurso.fechaAlta).toLocaleDateString('es-ES')}</p>
+              <p><strong>Fecha Alta:</strong> {selectedRecurso.fechaAlta ? new Date(selectedRecurso.fechaAlta).toLocaleDateString('es-ES') : 'No especificado'}</p>
             </div>
           )}
 

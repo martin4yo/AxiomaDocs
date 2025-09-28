@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { X, Calendar, Save, AlertCircle } from 'lucide-react';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { X, Calendar, Save } from 'lucide-react';
 import { estadosService } from '../../services/estados';
 import { documentosService } from '../../services/documentos';
 
@@ -226,10 +226,10 @@ const EditarDocumentoModal: React.FC<EditarDocumentoModalProps> = ({
 
     try {
       const updateData = {
-        fechaEmision: formData.fechaEmision || null,
-        fechaTramitacion: formData.fechaTramitacion || null,
-        fechaVencimiento: formData.fechaVencimiento || null,
-        estadoId: formData.estadoId ? parseInt(formData.estadoId) : null
+        fechaEmision: formData.fechaEmision || undefined,
+        fechaTramitacion: formData.fechaTramitacion || undefined,
+        fechaVencimiento: formData.fechaVencimiento || undefined,
+        estadoId: formData.estadoId ? parseInt(formData.estadoId) : undefined
       };
 
       // Determinar qué endpoint usar según el tipo de edición

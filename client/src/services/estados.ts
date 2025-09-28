@@ -25,4 +25,9 @@ export const estadosService = {
   async delete(id: number): Promise<void> {
     await api.delete(`/estados/${id}`);
   },
+
+  // Alias for getAll for backward compatibility
+  async getEstados(): Promise<Estado[]> {
+    return this.getAll();
+  },
 };

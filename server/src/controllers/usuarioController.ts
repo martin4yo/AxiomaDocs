@@ -342,7 +342,11 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
       where: { id: req.user!.id }
     });
 
-    if (!currentUser?.esAdmin && !isOwnProfile) {
+    if (!currentUser) {
+      return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
+    if (!currentUser.esAdmin && !isOwnProfile) {
       return res.status(403).json({ message: 'No tienes permisos para cambiar esta contraseña' });
     }
 
