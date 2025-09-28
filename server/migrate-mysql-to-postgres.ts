@@ -1,338 +1,275 @@
 import mysql from 'mysql2/promise';
-import prisma from './src/lib/prisma';
-import bcrypt from 'bcryptjs';
+import { PrismaClient } from '@prisma/client';
 
-// Configuración de MySQL
+// Script para migrar datos de MySQL a PostgreSQL
+const prisma = new PrismaClient();
+
+// Configuración de MySQL - AJUSTAR SEGÚN TU CONFIGURACIÓN
 const mysqlConfig = {
   host: 'localhost',
-  user: 'root',
-  password: 'Q27G4B98',
-  database: 'axiomadocs',
-  port: 3306
+  port: 3306,
+  user: 'root', // Ajustar según tu usuario MySQL
+  password: 'Q27G4B98', // Ajustar según tu contraseña MySQL
+  database: 'axiomadocs'
 };
 
-async function migrateData() {
-  let mysqlConnection;
+interface MySQLRow {
+  [key: string]: any;
+}
 
+async function connectMySQL() {
   try {
-    console.log('🔄 Iniciando migración de MySQL a PostgreSQL...\n');
-
-    // Conectar a MySQL
-    mysqlConnection = await mysql.createConnection(mysqlConfig);
+    const connection = await mysql.createConnection(mysqlConfig);
     console.log('✅ Conectado a MySQL');
+    return connection;
+  } catch (error) {
+    console.error('❌ Error conectando a MySQL:', error);
+    throw error;
+  }
+}
 
-    // 1. MIGRAR USUARIOS
-    console.log('\n📤 Migrando Usuarios...');
-    const [usuarios] = await mysqlConnection.execute('SELECT * FROM usuarios');
+async function migrateTable(
+  mysqlConnection: mysql.Connection,
+  tableName: string,
+  prismaModel: any,
+  transformData?: (row: MySQLRow) => any
+) {
+  try {
+    console.log(`\n🔄 Migrando tabla: ${tableName}`);
 
-    for (const user of usuarios as any[]) {
+    // Obtener datos de MySQL
+    const [rows] = await mysqlConnection.execute(`SELECT * FROM ${tableName}`);
+    const data = rows as MySQLRow[];
+
+    console.log(`📊 Encontrados ${data.length} registros en ${tableName}`);
+
+    if (data.length === 0) {
+      console.log(`⚠️  Tabla ${tableName} está vacía, saltando...`);
+      return;
+    }
+
+    // Transformar datos si es necesario
+    const transformedData = transformData
+      ? data.map(transformData)
+      : data;
+
+    // Insertar en PostgreSQL usando Prisma
+    for (const row of transformedData) {
       try {
-        await prisma.usuario.create({
-          data: {
-            id: user.id,
-            username: user.username,
-            password: user.password,
-            email: user.email,
-            nombre: user.nombre,
-            apellido: user.apellido,
-            esAdmin: false, // Se ajustará manualmente si es necesario
-            activo: Boolean(user.activo !== undefined ? user.activo : true),
-            createdAt: user.createdAt ? new Date(user.createdAt) : new Date(),
-            updatedAt: user.updatedAt ? new Date(user.updatedAt) : new Date()
-          }
+        // Eliminar campos auto-incrementales si existen
+        const { id, ...dataWithoutId } = row;
+
+        await prismaModel.create({
+          data: dataWithoutId
         });
-        console.log(`  ✅ Usuario migrado: ${user.username}`);
       } catch (error: any) {
         if (error.code === 'P2002') {
-          console.log(`  ⏭️  Usuario ya existe: ${user.username}`);
+          console.log(`⚠️  Registro duplicado en ${tableName}, saltando...`);
         } else {
-          console.error(`  ❌ Error migrando usuario ${user.username}:`, error.message);
+          console.error(`❌ Error insertando en ${tableName}:`, error);
         }
       }
     }
 
-    // 2. MIGRAR ESTADOS
-    console.log('\n📤 Migrando Estados...');
-    const [estados] = await mysqlConnection.execute('SELECT * FROM estados');
+    console.log(`✅ Migración de ${tableName} completada`);
 
-    for (const estado of estados as any[]) {
-      try {
-        await prisma.estado.create({
-          data: {
-            id: estado.id,
-            nombre: estado.nombre,
-            descripcion: estado.descripcion,
-            color: estado.color || '#808080',
-            nivel: estado.nivel || 5,
-            activo: Boolean(estado.activo !== undefined ? estado.activo : true),
-            createdBy: estado.creadoPor || 1,
-            updatedBy: estado.modificadoPor || estado.creadoPor || 1,
-            createdAt: estado.createdAt ? new Date(estado.createdAt) : new Date(),
-            updatedAt: estado.updatedAt ? new Date(estado.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Estado migrado: ${estado.nombre}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Estado ya existe: ${estado.nombre}`);
-        } else {
-          console.error(`  ❌ Error migrando estado ${estado.nombre}:`, error.message);
-        }
-      }
-    }
+  } catch (error) {
+    console.error(`❌ Error migrando tabla ${tableName}:`, error);
+  }
+}
 
-    // 3. MIGRAR RECURSOS
-    console.log('\n📤 Migrando Recursos...');
-    const [recursos] = await mysqlConnection.execute('SELECT * FROM recursos');
+async function resetSequences() {
+  try {
+    console.log('\n🔄 Reiniciando secuencias de PostgreSQL...');
 
-    for (const recurso of recursos as any[]) {
-      try {
-        await prisma.recurso.create({
-          data: {
-            id: recurso.id,
-            nombre: recurso.nombre,
-            apellido: recurso.apellido,
-            dni: recurso.cuil || null, // En MySQL es 'cuil', en PostgreSQL 'dni'
-            email: null, // No existe en MySQL
-            telefono: recurso.telefono,
-            direccion: `${recurso.direccion || ''} ${recurso.localidad || ''}`.trim(),
-            fechaNacimiento: null, // No existe en MySQL
-            fechaIngreso: recurso.fechaAlta ? new Date(recurso.fechaAlta) : null,
-            fechaBaja: recurso.fechaBaja ? new Date(recurso.fechaBaja) : null,
-            observaciones: null, // No existe en MySQL
-            activo: Boolean(recurso.fechaBaja === null),
-            estadoId: 2, // Estado VIGENTE por defecto
-            createdBy: recurso.creadoPor || 1,
-            updatedBy: recurso.modificadoPor || recurso.creadoPor || 1,
-            createdAt: recurso.createdAt ? new Date(recurso.createdAt) : new Date(),
-            updatedAt: recurso.updatedAt ? new Date(recurso.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Recurso migrado: ${recurso.apellido} ${recurso.nombre}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Recurso ya existe: ${recurso.apellido} ${recurso.nombre}`);
-        } else {
-          console.error(`  ❌ Error migrando recurso ${recurso.id}:`, error.message);
-        }
-      }
-    }
-
-    // 4. MIGRAR ENTIDADES
-    console.log('\n📤 Migrando Entidades...');
-    const [entidades] = await mysqlConnection.execute('SELECT * FROM entidades');
-
-    for (const entidad of entidades as any[]) {
-      try {
-        await prisma.entidad.create({
-          data: {
-            id: entidad.id,
-            nombre: entidad.razonSocial,
-            descripcion: entidad.cuit || null, // Guardar CUIT en descripción
-            url: entidad.urlPlataformaDocumentacion,
-            contacto: null, // No existe en MySQL
-            email: entidad.email,
-            telefono: entidad.telefono,
-            direccion: `${entidad.domicilio || ''} ${entidad.localidad || ''}`.trim(),
-            fechaIngreso: null, // No existe en MySQL
-            observaciones: null, // No existe en MySQL
-            activo: true,
-            estadoId: 2, // Estado VIGENTE por defecto
-            createdBy: entidad.creadoPor || 1,
-            updatedBy: entidad.modificadoPor || entidad.creadoPor || 1,
-            createdAt: entidad.createdAt ? new Date(entidad.createdAt) : new Date(),
-            updatedAt: entidad.updatedAt ? new Date(entidad.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Entidad migrada: ${entidad.razonSocial}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Entidad ya existe: ${entidad.razonSocial}`);
-        } else {
-          console.error(`  ❌ Error migrando entidad ${entidad.razonSocial}:`, error.message);
-        }
-      }
-    }
-
-    // 5. MIGRAR DOCUMENTACIÓN
-    console.log('\n📤 Migrando Documentación...');
-    const [documentacion] = await mysqlConnection.execute('SELECT * FROM documentacion');
-
-    for (const doc of documentacion as any[]) {
-      try {
-        await prisma.documentacion.create({
-          data: {
-            id: doc.id,
-            nombre: doc.descripcion, // En MySQL es 'descripcion', en PostgreSQL 'nombre'
-            descripcion: doc.descripcion,
-            diasVigencia: doc.diasVigencia || 365,
-            diasAnticipacion: doc.diasAnticipacion || 30,
-            esUniversal: Boolean(doc.esUniversal),
-            fechaEmision: doc.fechaEmision ? new Date(doc.fechaEmision) : null,
-            fechaTramitacion: doc.fechaTramitacion ? new Date(doc.fechaTramitacion) : null,
-            fechaVencimiento: doc.fechaVencimiento ? new Date(doc.fechaVencimiento) : null,
-            activo: true,
-            estadoId: doc.estadoVencimientoId || doc.estadoId || 2,
-            createdBy: doc.creadoPor || 1,
-            updatedBy: doc.modificadoPor || doc.creadoPor || 1,
-            createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
-            updatedAt: doc.updatedAt ? new Date(doc.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Documentación migrada: ${doc.descripcion}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Documentación ya existe: ${doc.descripcion}`);
-        } else {
-          console.error(`  ❌ Error migrando documentación ${doc.descripcion}:`, error.message);
-        }
-      }
-    }
-
-    // 6. MIGRAR RECURSO_DOCUMENTACION
-    console.log('\n📤 Migrando Recurso-Documentación...');
-    const [recursoDoc] = await mysqlConnection.execute('SELECT * FROM recurso_documentacion');
-
-    for (const rd of recursoDoc as any[]) {
-      try {
-        await prisma.recursoDocumentacion.create({
-          data: {
-            id: rd.id,
-            recursoId: rd.recursoId,
-            documentacionId: rd.documentacionId,
-            fechaEmision: rd.fechaEmision ? new Date(rd.fechaEmision) : null,
-            fechaTramitacion: rd.fechaTramitacion ? new Date(rd.fechaTramitacion) : null,
-            fechaVencimiento: rd.fechaVencimiento ? new Date(rd.fechaVencimiento) : null,
-            observaciones: rd.observaciones,
-            estadoId: rd.estadoId,
-            activo: Boolean(rd.activo !== undefined ? rd.activo : true),
-            createdBy: rd.createdBy || 1,
-            updatedBy: rd.updatedBy || rd.createdBy || 1,
-            createdAt: rd.createdAt ? new Date(rd.createdAt) : new Date(),
-            updatedAt: rd.updatedAt ? new Date(rd.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Recurso-Doc migrado: ID ${rd.id}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Recurso-Doc ya existe: ID ${rd.id}`);
-        } else {
-          console.error(`  ❌ Error migrando recurso-doc ${rd.id}:`, error.message);
-        }
-      }
-    }
-
-    // 7. MIGRAR ENTIDAD_DOCUMENTACION
-    console.log('\n📤 Migrando Entidad-Documentación...');
-    const [entidadDoc] = await mysqlConnection.execute('SELECT * FROM entidad_documentacion');
-
-    for (const ed of entidadDoc as any[]) {
-      try {
-        await prisma.entidadDocumentacion.create({
-          data: {
-            id: ed.id,
-            entidadId: ed.entidadId,
-            documentacionId: ed.documentacionId,
-            esInhabilitante: Boolean(ed.esInhabilitante),
-            notificarEmail: Boolean(ed.notificarEmail),
-            fechaEmision: ed.fechaEmision ? new Date(ed.fechaEmision) : null,
-            fechaTramitacion: ed.fechaTramitacion ? new Date(ed.fechaTramitacion) : null,
-            fechaVencimiento: ed.fechaVencimiento ? new Date(ed.fechaVencimiento) : null,
-            observaciones: ed.observaciones,
-            estadoId: ed.estadoId,
-            activo: Boolean(ed.activo !== undefined ? ed.activo : true),
-            createdBy: ed.createdBy || 1,
-            updatedBy: ed.updatedBy || ed.createdBy || 1,
-            createdAt: ed.createdAt ? new Date(ed.createdAt) : new Date(),
-            updatedAt: ed.updatedAt ? new Date(ed.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Entidad-Doc migrado: ID ${ed.id}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Entidad-Doc ya existe: ID ${ed.id}`);
-        } else {
-          console.error(`  ❌ Error migrando entidad-doc ${ed.id}:`, error.message);
-        }
-      }
-    }
-
-    // 8. MIGRAR ENTIDAD_RECURSO
-    console.log('\n📤 Migrando Entidad-Recurso...');
-    const [entidadRecurso] = await mysqlConnection.execute('SELECT * FROM entidad_recurso');
-
-    for (const er of entidadRecurso as any[]) {
-      try {
-        await prisma.entidadRecurso.create({
-          data: {
-            id: er.id,
-            entidadId: er.entidadId,
-            recursoId: er.recursoId,
-            fechaInicio: er.fechaInicio ? new Date(er.fechaInicio) : null,
-            fechaFin: er.fechaFin ? new Date(er.fechaFin) : null,
-            observaciones: er.observaciones,
-            activo: Boolean(er.activo !== undefined ? er.activo : true),
-            createdBy: er.createdBy || 1,
-            updatedBy: er.updatedBy || er.createdBy || 1,
-            createdAt: er.createdAt ? new Date(er.createdAt) : new Date(),
-            updatedAt: er.updatedAt ? new Date(er.updatedAt) : new Date()
-          }
-        });
-        console.log(`  ✅ Entidad-Recurso migrado: ID ${er.id}`);
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          console.log(`  ⏭️  Entidad-Recurso ya existe: ID ${er.id}`);
-        } else {
-          console.error(`  ❌ Error migrando entidad-recurso ${er.id}:`, error.message);
-        }
-      }
-    }
-
-    // Actualizar secuencias de PostgreSQL
-    console.log('\n🔧 Actualizando secuencias de PostgreSQL...');
     const tables = [
-      'usuarios', 'estados', 'recursos', 'entidades', 'documentacion',
-      'recurso_documentacion', 'entidad_documentacion', 'entidad_recurso'
+      'usuarios', 'estados', 'documentacion', 'recursos',
+      'entidades', 'recurso_documentacion', 'entidad_documentacion',
+      'entidad_recurso', 'intercambios', 'workflows',
+      'documento_archivos', 'documento_envios', 'documento_eventos',
+      'estado_documento_logs'
     ];
 
     for (const table of tables) {
       try {
         await prisma.$executeRawUnsafe(`
-          SELECT setval(pg_get_serial_sequence('"${table}"', 'id'),
-          COALESCE((SELECT MAX(id) FROM "${table}"), 1), true)
+          SELECT setval(pg_get_serial_sequence('${table}', 'id'),
+                        COALESCE((SELECT MAX(id) FROM ${table}), 1), false);
         `);
-        console.log(`  ✅ Secuencia actualizada: ${table}`);
-      } catch (error: any) {
-        console.error(`  ❌ Error actualizando secuencia ${table}:`, error.message);
+      } catch (error) {
+        // Algunas tablas pueden no tener secuencias, ignorar errores
       }
     }
 
-    console.log('\n✨ Migración completada exitosamente!');
+    console.log('✅ Secuencias reiniciadas');
+  } catch (error) {
+    console.error('❌ Error reiniciando secuencias:', error);
+  }
+}
+
+async function main() {
+  let mysqlConnection: mysql.Connection | null = null;
+
+  try {
+    console.log('🚀 Iniciando migración MySQL → PostgreSQL');
+
+    // Conectar a MySQL
+    mysqlConnection = await connectMySQL();
+
+    // Verificar conexión PostgreSQL
+    await prisma.$connect();
+    console.log('✅ Conectado a PostgreSQL');
+
+    // Migrar tablas en orden (respetando dependencias)
+
+    // 1. Usuarios (independiente)
+    await migrateTable(mysqlConnection, 'usuarios', prisma.usuario, (row) => ({
+      username: row.username,
+      email: row.email,
+      password: row.password,
+      nombre: row.nombre,
+      apellido: row.apellido,
+      esAdmin: Boolean(row.es_admin || row.esAdmin),
+      activo: Boolean(row.activo),
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 2. Estados (con createdBy)
+    await migrateTable(mysqlConnection, 'estados', prisma.estado, (row) => ({
+      nombre: row.nombre,
+      descripcion: row.descripcion,
+      color: row.color || '#64748b',
+      nivel: row.nivel || 1,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 3. Documentación
+    await migrateTable(mysqlConnection, 'documentacion', prisma.documentacion, (row) => ({
+      codigo: row.codigo,
+      nombre: row.nombre,
+      descripcion: row.descripcion,
+      diasVigencia: row.dias_vigencia || row.diasVigencia || 365,
+      diasAnticipacion: row.dias_anticipacion || row.diasAnticipacion || 30,
+      esUniversal: Boolean(row.es_universal || row.esUniversal),
+      fechaEmision: row.fecha_emision ? new Date(row.fecha_emision) : null,
+      fechaTramitacion: row.fecha_tramitacion ? new Date(row.fecha_tramitacion) : null,
+      fechaVencimiento: row.fecha_vencimiento ? new Date(row.fecha_vencimiento) : null,
+      estadoId: row.estado_id || row.estadoId,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 4. Recursos
+    await migrateTable(mysqlConnection, 'recursos', prisma.recurso, (row) => ({
+      codigo: row.codigo,
+      nombre: row.nombre,
+      apellido: row.apellido,
+      dni: row.dni,
+      email: row.email,
+      telefono: row.telefono,
+      direccion: row.direccion,
+      fechaNacimiento: row.fecha_nacimiento ? new Date(row.fecha_nacimiento) : null,
+      fechaIngreso: row.fecha_ingreso ? new Date(row.fecha_ingreso) : null,
+      fechaBaja: row.fecha_baja ? new Date(row.fecha_baja) : null,
+      observaciones: row.observaciones,
+      estadoId: row.estado_id || row.estadoId,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 5. Entidades
+    await migrateTable(mysqlConnection, 'entidades', prisma.entidad, (row) => ({
+      nombre: row.nombre,
+      descripcion: row.descripcion,
+      url: row.url,
+      contacto: row.contacto,
+      email: row.email,
+      telefono: row.telefono,
+      direccion: row.direccion,
+      fechaIngreso: row.fecha_ingreso ? new Date(row.fecha_ingreso) : null,
+      observaciones: row.observaciones,
+      estadoId: row.estado_id || row.estadoId,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 6. RecursoDocumentacion
+    await migrateTable(mysqlConnection, 'recurso_documentacion', prisma.recursoDocumentacion, (row) => ({
+      recursoId: row.recurso_id || row.recursoId,
+      documentacionId: row.documentacion_id || row.documentacionId,
+      fechaEmision: row.fecha_emision ? new Date(row.fecha_emision) : null,
+      fechaTramitacion: row.fecha_tramitacion ? new Date(row.fecha_tramitacion) : null,
+      fechaVencimiento: row.fecha_vencimiento ? new Date(row.fecha_vencimiento) : null,
+      observaciones: row.observaciones,
+      estadoId: row.estado_id || row.estadoId,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 7. EntidadDocumentacion
+    await migrateTable(mysqlConnection, 'entidad_documentacion', prisma.entidadDocumentacion, (row) => ({
+      entidadId: row.entidad_id || row.entidadId,
+      documentacionId: row.documentacion_id || row.documentacionId,
+      esInhabilitante: Boolean(row.es_inhabilitante || row.esInhabilitante),
+      notificarEmail: Boolean(row.notificar_email || row.notificarEmail || row.enviar_por_mail),
+      fechaEmision: row.fecha_emision ? new Date(row.fecha_emision) : null,
+      fechaTramitacion: row.fecha_tramitacion ? new Date(row.fecha_tramitacion) : null,
+      fechaVencimiento: row.fecha_vencimiento ? new Date(row.fecha_vencimiento) : null,
+      observaciones: row.observaciones,
+      estadoId: row.estado_id || row.estadoId,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // 8. EntidadRecurso
+    await migrateTable(mysqlConnection, 'entidad_recurso', prisma.entidadRecurso, (row) => ({
+      entidadId: row.entidad_id || row.entidadId,
+      recursoId: row.recurso_id || row.recursoId,
+      fechaInicio: row.fecha_inicio ? new Date(row.fecha_inicio) : null,
+      fechaFin: row.fecha_fin ? new Date(row.fecha_fin) : null,
+      observaciones: row.observaciones,
+      activo: Boolean(row.activo),
+      createdBy: row.created_by || row.createdBy || 1,
+      updatedBy: row.updated_by || row.updatedBy,
+      createdAt: new Date(row.created_at || row.createdAt),
+      updatedAt: new Date(row.updated_at || row.updatedAt)
+    }));
+
+    // Reiniciar secuencias
+    await resetSequences();
+
+    console.log('\n🎉 ¡Migración completada exitosamente!');
 
   } catch (error) {
-    console.error('\n❌ Error en la migración:', error);
-    throw error;
+    console.error('❌ Error durante la migración:', error);
   } finally {
+    // Cerrar conexiones
     if (mysqlConnection) {
       await mysqlConnection.end();
-      console.log('\n🔌 Conexión MySQL cerrada');
     }
     await prisma.$disconnect();
-    console.log('🔌 Conexión PostgreSQL cerrada');
   }
 }
 
 // Ejecutar migración
-if (require.main === module) {
-  migrateData()
-    .then(() => {
-      console.log('\n✅ Proceso de migración finalizado');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('\n❌ Migración falló:', error);
-      process.exit(1);
-    });
-}
-
-export default migrateData;
+main().catch(console.error);
