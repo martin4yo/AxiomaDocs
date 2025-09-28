@@ -29,14 +29,32 @@ SELECT COUNT(*) FROM documentacion;
 -- etc.
 ```
 
-### **3. Ejecutar la migración**
+### **3. Limpiar PostgreSQL (si es necesario)**
+
+Si ya ejecutaste la migración antes y quieres reintentar:
+
+```bash
+cd server
+npx ts-node clean-postgres-for-migration.ts
+```
+
+### **4. Ejecutar la migración**
 
 ```bash
 cd server
 npx ts-node migrate-mysql-to-postgres.ts
 ```
 
-### **4. Verificar migración exitosa**
+### **5. Verificar migración exitosa**
+
+Ejecuta el script de verificación:
+
+```bash
+cd server
+npx ts-node verify-migration.ts
+```
+
+**Salida esperada del script de migración:**
 
 El script mostrará el progreso así:
 
