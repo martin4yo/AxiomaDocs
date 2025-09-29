@@ -50,7 +50,8 @@
       "Bash(git rm:*)",
       "Bash(git commit:*)",
       "Read(//d/Desarrollos/React/**)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(xargs ls:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
