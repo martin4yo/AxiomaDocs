@@ -49,6 +49,8 @@ export interface EntidadEnvio {
   tieneAdjuntos: boolean;
   totalEventos: number;
   urlPlataforma?: string;
+  recursoNombre?: string;
+  recursoId?: number;
   emailContacto?: string;
 }
 

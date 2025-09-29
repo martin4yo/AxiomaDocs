@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, Building2, FileText, Clock, CheckCircle, Mail, Globe, Filter, Paperclip, Calendar, Eye, X, Download, Package } from 'lucide-react';
+import { Send, Building2, FileText, Clock, CheckCircle, Filter, Paperclip, Calendar, X, Download, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import seguimientoService from '../services/seguimiento';
 
@@ -8,7 +8,10 @@ type VistaActiva = 'porEntidad' | 'porDocumento';
 
 const Seguimiento: React.FC = () => {
   const [vistaActiva, setVistaActiva] = useState<VistaActiva>('porEntidad');
-  const [filtros, setFiltros] = useState({
+  const [filtros, setFiltros] = useState<{
+    estadoEnvio: 'pendiente' | 'enviado' | 'recibido' | '';
+    search: string;
+  }>({
     estadoEnvio: '', // 'pendiente', 'enviado', 'recibido'
     search: ''
   });
@@ -26,14 +29,20 @@ const Seguimiento: React.FC = () => {
 
   const { data: documentosData, isLoading: loadingDocumentos } = useQuery({
     queryKey: ['seguimiento-por-documento', filtros],
-    queryFn: () => seguimientoService.getPorDocumento(filtros),
+    queryFn: () => seguimientoService.getPorDocumento({
+      ...filtros,
+      estadoEnvio: filtros.estadoEnvio || undefined
+    }),
     enabled: vistaActiva === 'porDocumento',
     staleTime: 30000
   });
 
   const { data: entidadesData, isLoading: loadingEntidades } = useQuery({
     queryKey: ['seguimiento-por-entidad', filtros],
-    queryFn: () => seguimientoService.getPorEntidad(filtros),
+    queryFn: () => seguimientoService.getPorEntidad({
+      ...filtros,
+      estadoEnvio: filtros.estadoEnvio || undefined
+    }),
     enabled: vistaActiva === 'porEntidad',
     staleTime: 30000
   });

@@ -17,10 +17,10 @@ import Intercambios from './pages/Intercambios';
 import Workflows from './pages/Workflows';
 import Procesos from './pages/Procesos';
 import { ResetPassword } from './components/Auth/ResetPassword';
+import Gestion from './pages/Gestion';
+import Seguimiento from './pages/Seguimiento';
 // Temporarily disabled - compilation issues
 // import GestionDocumentos from './pages/GestionDocumentos';
-// import Gestion from './pages/Gestion';
-// import Seguimiento from './pages/Seguimiento';
 
 // Crear cliente de React Query
 const queryClient = new QueryClient({
@@ -65,10 +65,10 @@ const AppRoutes: React.FC = () => {
         <Route path="recursos" element={<Recursos />} />
         <Route path="documentacion" element={<Documentacion />} />
         <Route path="entidades" element={<Entidades />} />
+        <Route path="gestion" element={<Gestion />} />
+        <Route path="seguimiento" element={<Seguimiento />} />
         {/* Temporarily disabled - compilation issues */}
         {/* <Route path="gestion-documentos" element={<GestionDocumentos />} /> */}
-        {/* <Route path="gestion" element={<Gestion />} /> */}
-        {/* <Route path="seguimiento" element={<Seguimiento />} /> */}
         <Route path="intercambios" element={<Intercambios />} />
         <Route path="workflows" element={<Workflows />} />
         <Route path="procesos" element={<Procesos />} />

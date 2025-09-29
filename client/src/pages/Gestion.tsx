@@ -135,10 +135,10 @@ const Gestion: React.FC = () => {
     setDocumentoSeleccionado(null);
   };
 
-  const handleEventoCreado = () => {
-    // Refrescar datos después de crear un evento
-    console.log('Evento creado exitosamente');
-  };
+  // const handleEventoCreado = () => {
+  //   // Refrescar datos después de crear un evento
+  //   console.log('Evento creado exitosamente');
+  // };
 
   const handleAbrirEdicion = (documento: any) => {
     setDocumentoSeleccionado(documento);
@@ -234,7 +234,7 @@ const Gestion: React.FC = () => {
     });
   };
 
-  const documentosAgrupados = agruparDocumentos(documentosFiltrados);
+  const documentosAgrupados = agruparDocumentos(documentosFiltrados || []);
 
   // Aplicar filtro a los documentos agrupados
   const documentosFiltradosPorEstado = categoriaActiva === 'universales'
@@ -491,7 +491,7 @@ const Gestion: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {documentosFiltradosPorEstado.sinAgrupar?.map((doc) => (
+                      {documentosFiltradosPorEstado.sinAgrupar?.map((doc: any) => (
                         <tr key={doc.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">{doc.codigo}</div>
@@ -553,9 +553,9 @@ const Gestion: React.FC = () => {
                   // Tablas agrupadas para documentos por recurso o entidad
                   <div className="space-y-6">
                     {Object.entries(documentosFiltradosPorEstado).map(([grupo, documentos]) => {
-                      if (grupo === 'sin_asignar' || documentos.length === 0) return null;
+                      if (grupo === 'sin_asignar' || (documentos as any[]).length === 0) return null;
 
-                      const primerDoc = documentos[0];
+                      const primerDoc = (documentos as any[])[0];
                       const asignacion = primerDoc.asignacionActual;
 
                       return (
@@ -602,7 +602,7 @@ const Gestion: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                              {documentos.map((doc) => (
+                              {(documentos as any[]).map((doc: any) => (
                                 <tr key={`${doc.id}-${asignacion.id}`} className="hover:bg-gray-50">
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-sm font-medium text-gray-900">{doc.codigo}</div>

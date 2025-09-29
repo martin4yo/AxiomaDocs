@@ -7,7 +7,9 @@ import {
   Building2,
   UserCog,
   BarChart3,
-  Circle
+  Circle,
+  ClipboardList,
+  Send
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,9 +27,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { to: '/recursos', icon: Users, label: 'Recursos' },
     { to: '/entidades', icon: Building2, label: 'Entidades' },
 
-    // Gestión de Documentos - Nueva arquitectura (temporarily disabled)
-    // { to: '/gestion', icon: ClipboardList, label: 'Gestión' },
-    // { to: '/seguimiento', icon: Send, label: 'Seguimiento' },
+    // Gestión de Documentos - Nueva arquitectura
+    { to: '/gestion', icon: ClipboardList, label: 'Gestión de Documentos' },
+    { to: '/seguimiento', icon: Send, label: 'Seguimiento' },
 
     // Gestión de Intercambios - Funcionalidad Principal
     // { to: '/intercambios', icon: ArrowRightLeft, label: 'Intercambios' },
