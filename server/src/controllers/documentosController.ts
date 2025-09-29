@@ -340,7 +340,7 @@ export const getRecursosAsignados = async (req: AuthRequest, res: Response) => {
       id: rd.id,
       recurso: {
         id: rd.recurso.id,
-        nombre: rd.recurso.nombre,
+        nombre: `${rd.recurso.nombre} ${rd.recurso.apellido}`,
         codigo: rd.recurso.codigo,
         cuil: rd.recurso.dni
       },
