@@ -306,7 +306,7 @@ model Workflow {
 
 model DocumentoEnvio {
   id              Int       @id @default(autoincrement())
-  recursoId       Int       @map("recurso_id")
+  recursoId       Int?      @map("recurso_id")
   documentacionId Int       @map("documentacion_id")
   entidadId       Int       @map("entidad_id")
   fechaEnvio      DateTime  @map("fecha_envio") @db.Date
@@ -320,7 +320,7 @@ model DocumentoEnvio {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  recurso       Recurso       @relation(fields: [recursoId], references: [id])
+  recurso       Recurso?      @relation(fields: [recursoId], references: [id])
   documentacion Documentacion @relation(fields: [documentacionId], references: [id])
   entidad       Entidad       @relation(fields: [entidadId], references: [id])
   estado        Estado        @relation(fields: [estadoId], references: [id])

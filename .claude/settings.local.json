@@ -48,7 +48,9 @@
       "Bash(npx prisma db push:*)",
       "Bash(npx prisma:*)",
       "Bash(git rm:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Read(//d/Desarrollos/React/**)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

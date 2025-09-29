@@ -17,9 +17,9 @@ import estadoDocumentosRoutes from './routes/estadoDocumentos';
 // import workflowRoutes from './routes/workflowRoutes';
 // import estadoDocumentosRoutes from './routes/estadoDocumentos';
 // import gestionDocumentosRoutes from './routes/gestionDocumentosRoutes';
-// import documentosRoutes from './routes/documentosRoutes';
+import documentosRoutes from './routes/documentosRoutes';
 // import eventosRoutes from './routes/eventosRoutes';
-// import seguimientoRoutes from './routes/seguimientoRoutes';
+import seguimientoRoutes from './routes/seguimientoRoutes';
 import cronService from './services/cronService';
 
 dotenv.config();
@@ -64,9 +64,9 @@ app.use('/api/estado-documentos', estadoDocumentosRoutes);
 // app.use('/api/intercambios', intercambioRoutes);
 // app.use('/api/workflows', workflowRoutes);
 // app.use('/api/gestion-documentos', gestionDocumentosRoutes);
-// app.use('/api/documentos', documentosRoutes);
+app.use('/api/documentos', documentosRoutes);
 // app.use('/api/eventos', eventosRoutes);
-// app.use('/api/seguimiento', seguimientoRoutes);
+app.use('/api/seguimiento', seguimientoRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

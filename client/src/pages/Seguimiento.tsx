@@ -154,6 +154,46 @@ const Seguimiento: React.FC = () => {
         </div>
       </div>
 
+      {/* Stats rápidas */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <Clock className="h-8 w-8 text-yellow-500 mr-3" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{statsData?.pendientes || 0}</div>
+              <div className="text-sm text-gray-600">Pendientes</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <Send className="h-8 w-8 text-blue-500 mr-3" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{statsData?.enviados || 0}</div>
+              <div className="text-sm text-gray-600">Enviados</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{statsData?.recibidos || 0}</div>
+              <div className="text-sm text-gray-600">Recibidos</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center">
+            <Building2 className="h-8 w-8 text-purple-500 mr-3" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{statsData?.totalEntidades || 0}</div>
+              <div className="text-sm text-gray-600">Entidades</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filtros y Vista Toggle */}
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex items-center justify-between">
@@ -479,46 +519,6 @@ const Seguimiento: React.FC = () => {
           )}
         </div>
       )}
-
-      {/* Stats rápidas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center">
-            <Clock className="h-8 w-8 text-yellow-500 mr-3" />
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{statsData?.pendientes || 0}</div>
-              <div className="text-sm text-gray-600">Pendientes</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center">
-            <Send className="h-8 w-8 text-blue-500 mr-3" />
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{statsData?.enviados || 0}</div>
-              <div className="text-sm text-gray-600">Enviados</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center">
-            <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{statsData?.recibidos || 0}</div>
-              <div className="text-sm text-gray-600">Recibidos</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex items-center">
-            <Building2 className="h-8 w-8 text-purple-500 mr-3" />
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{statsData?.totalEntidades || 0}</div>
-              <div className="text-sm text-gray-600">Entidades</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Modal de Eventos */}
       {modalEventos.visible && (
