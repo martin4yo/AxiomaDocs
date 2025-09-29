@@ -121,7 +121,7 @@ export const getPorDocumento = async (req: AuthRequest, res: Response) => {
           totalEventos: 0, // TODO: Implementar conteo de eventos
           urlPlataforma: ed.entidad.url,
           emailContacto: ed.entidad.email,
-          recursoNombre: envio?.recurso?.nombre || null,
+          recursoNombre: envio?.recurso ? `${envio.recurso.nombre} ${envio.recurso.apellido}` : null,
           recursoId: envio?.recursoId || null
         };
       });
@@ -229,7 +229,7 @@ export const getPorEntidad = async (req: AuthRequest, res: Response) => {
           destino: ent.url || '',
           observaciones: envio?.observaciones || '',
           recursoId: envio?.recursoId || null,
-          recursoNombre: envio?.recurso?.nombre || null,
+          recursoNombre: envio?.recurso ? `${envio.recurso.nombre} ${envio.recurso.apellido}` : null,
           entidadDocumentacionId: ed.id,
           tieneAdjuntos: false, // TODO: Implementar conteo de adjuntos
           totalEventos: 0 // TODO: Implementar conteo de eventos
